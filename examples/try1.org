@@ -1,0 +1,116 @@
+
+* House keeping
+#+begin_src elisp :results none
+  (setq org-confirm-babel-evaluate nil)
+  (require 'org-tempo)  
+#+end_src
+
+* Calculate inflow settings
+#+NAME: python_parameters
+#+begin_src python :session py1 :var output="WING_SPAN"
+  import numpy as np
+
+  MACH_NUMBER = 0.735
+  FREESTREAM_TEMPERATURE= 222.773
+  FREESTREAM_PRESSURE= 26201.6
+  R = 287.058
+  gamma = 1.4  
+  FREESTREAM_VELOCITY= MACH_NUMBER * (FREESTREAM_TEMPERATURE * gamma * R) ** 0.5
+  FREESTREAM_DENSITY = FREESTREAM_PRESSURE / (FREESTREAM_TEMPERATURE * R)
+
+  ROOT_WING_CHORD = 3.
+  TIP_WING_CHORD= 0.7
+  WING_SPAN= 28.
+  b = ROOT_WING_CHORD/2
+
+  # (1/3) * π * h * (r² + r * R + R²)
+  WING_VOL_TRUN_CONE= 1./3 * np.pi * (WING_SPAN) * ((TIP_WING_CHORD * 0.5)**2 +
+      TIP_WING_CHORD * 0.5 * ROOT_WING_CHORD *0.5 + (ROOT_WING_CHORD * 0.5)**2)
+
+  WING_VOL_TRUN_CONE = 1.1
+  rho_mat = 400.
+  Omega = 100.
+  # m
+  SCALE_PARAM = 1. / (WING_VOL_TRUN_CONE * rho_mat)
+
+  # mu
+  AIRFOIL_MASS_RATIO = (WING_VOL_TRUN_CONE * rho_mat) / (np.pi *
+                        FREESTREAM_DENSITY * (ROOT_WING_CHORD / 2)**2)
+
+  # FLUTTER_SPEED_INDEX = U/(mu**0.5 * b * omega0)
+  # %% (TgammaR) = ((vf*vf)*(b*b)*(w_alpha*w_alpha)*mu) / (Mach*Mach)
+  FLUTTER_SPEED_INDEX = MACH_NUMBER * ((FREESTREAM_TEMPERATURE * gamma * R) ** 0.5 /
+                         ((b * Omega) * AIRFOIL_MASS_RATIO**0.5))
+  eval(output)
+  # AOA= 0.0
+  # FREESTREAM_TEMPERATURE= 222.7730
+  # FREESTREAM_PRESSURE= 26201.6
+  # %% P = rho * R * T => rho = 26201.6 / (287.058 * 222.7730) = 0.4097
+  # FREESTREAM_DENSITY= 0.4097
+  # %
+  # MACH_NUMBER= 0.735
+  # SIDESLIP_ANGLE= 0.0
+  # %
+  # %%%%%n
+  # MACH_MOTION= 0.735
+  # %
+  # % Moving wall boundary marker(s) (NONE = no marker, ignored for RIGID_MOTION)
+  # MARKER_MOVING= (wing, strut)
+  # %
+  # ROOT_WING_CHORD= 3.
+  # TIP_WING_CHORD= 0.7
+  # WING_SPAN= 28.
+  # WING_VOL_TRUN_CONE= 1.1
+  # %
+  # %% conversion to kg (for scaling of forces)
+  # %% invert of mass of the wing panel (m=117.1125)
+  # %% = 1/m with m = volume_cone * rho_mat - 1/(400*1.1)
+  # SCALE_PARAM= 0.00227
+  # %
+  # % The flutter speed index (modifies the freestream condition in the solver)
+  # %% U/(omega0*c/2*mu)
+  # %% 170/(50*1.5*155.6) //
+  # %% (TgammaR) = ((vf*vf)*(b*b)*(w_alpha*w_alpha)*mu) / (Mach*Mach)
+  # %% 222.7730 * 1.4 * 287.058 = vf^2 * 1.5^2 * 100^2 * 155.6 / 0.735^2 =>
+  # %% vf = 0.1175 //0.352608
+  # FLUTTER_SPEED_INDEX = 0.1175
+  # %
+  # % The airfoil mass ratio
+  # % The airfoil mass ratio = mu = m / (pi * rho * (c/2)**2)
+  # % 400*1.1/(pi*0.4*1.5**2)
+  # AIRFOIL_MASS_RATIO = 155.6
+#+end_src
+
+#+RESULTS: python_parameters
+: 28.0
+
+
+#+begin_src python :noweb yes
+  a = <<python_parameters("MACH_NUMBER")>>
+  a
+#+end_src
+
+#+RESULTS:
+: None
+
+#+NAME: some-code
+#+BEGIN_SRC python :var num="a" :session py2
+  a = (5+1)*10
+  b = a * 2 
+  eval(num)
+#+END_SRC
+
+#+RESULTS: some-code
+: 10
+
+
+* to tangle
+:PROPERTIES:
+:header-args: :tangle try1.cfg :mkdirp yes
+:END:
+
+#+BEGIN_SRC org :noweb yes 
+  a = <<python_parameters(output="MACH_NUMBER")>>
+  b = <<some-code(num="b")>>
+#+END_SRC
+

@@ -1,0 +1,585 @@
+
+* House keeping
+#+begin_src elisp :results none
+  (setq org-confirm-babel-evaluate nil)
+  (require 'org-tempo)  
+#+end_src
+
+* HB workflow
+** Calculate inflow settings
+#+NAME: python_parameters
+#+begin_src python :session py1 :var output="WING_SPAN"
+  import numpy as np
+
+  MACH_NUMBER = 0.735
+  FREESTREAM_TEMPERATURE= 222.773
+  FREESTREAM_PRESSURE= 26201.65
+  R = 287.058
+  gamma = 1.4  
+  FREESTREAM_VELOCITY= MACH_NUMBER * (FREESTREAM_TEMPERATURE * gamma * R) ** 0.5
+  FREESTREAM_DENSITY = FREESTREAM_PRESSURE / (FREESTREAM_TEMPERATURE * R)
+
+  ROOT_WING_CHORD = 3.
+  TIP_WING_CHORD= 0.7
+  WING_SPAN= 28.
+  b = ROOT_WING_CHORD/2
+
+  # (1/3) * π * h * (r² + r * R + R²)
+  WING_VOL_TRUN_CONE= 1./3 * np.pi * (WING_SPAN) * ((TIP_WING_CHORD * 0.5)**2 +
+      TIP_WING_CHORD * 0.5 * ROOT_WING_CHORD *0.5 + (ROOT_WING_CHORD * 0.5)**2)
+
+  WING_VOL_TRUN_CONE = 1.1
+  rho_mat = 400.
+  Omega = 100.
+  # m
+  SCALE_PARAM = 1. / (WING_VOL_TRUN_CONE * rho_mat)
+
+  # mu
+  AIRFOIL_MASS_RATIO = (WING_VOL_TRUN_CONE * rho_mat) / (np.pi *
+                        FREESTREAM_DENSITY * (ROOT_WING_CHORD / 2)**2)
+
+  # FLUTTER_SPEED_INDEX = U/(mu**0.5 * b * omega0)
+  # %% (TgammaR) = ((vf*vf)*(b*b)*(w_alpha*w_alpha)*mu) / (Mach*Mach)
+  FLUTTER_SPEED_INDEX = MACH_NUMBER * ((FREESTREAM_TEMPERATURE * gamma * R) ** 0.5 /
+                         ((b * Omega) * AIRFOIL_MASS_RATIO**0.5))
+  eval(output)
+  # AOA= 0.0
+  # FREESTREAM_TEMPERATURE= 222.7730
+  # FREESTREAM_PRESSURE= 26201.6
+  # %% P = rho * R * T => rho = 26201.6 / (287.058 * 222.7730) = 0.4097
+  # FREESTREAM_DENSITY= 0.4097
+  # %
+  # MACH_NUMBER= 0.735
+  # SIDESLIP_ANGLE= 0.0
+  # %
+  # %%%%%n
+  # MACH_MOTION= 0.735
+  # %
+  # % Moving wall boundary marker(s) (NONE = no marker, ignored for RIGID_MOTION)
+  # MARKER_MOVING= (wing, strut)
+  # %
+  # ROOT_WING_CHORD= 3.
+  # TIP_WING_CHORD= 0.7
+  # WING_SPAN= 28.
+  # WING_VOL_TRUN_CONE= 1.1
+  # %
+  # %% conversion to kg (for scaling of forces)
+  # %% invert of mass of the wing panel (m=117.1125)
+  # %% = 1/m with m = volume_cone * rho_mat - 1/(400*1.1)
+  # SCALE_PARAM= 0.00227
+  # %
+  # % The flutter speed index (modifies the freestream condition in the solver)
+  # %% U/(omega0*c/2*mu)
+  # %% 170/(50*1.5*155.6) //
+  # %% (TgammaR) = ((vf*vf)*(b*b)*(w_alpha*w_alpha)*mu) / (Mach*Mach)
+  # %% 222.7730 * 1.4 * 287.058 = vf^2 * 1.5^2 * 100^2 * 155.6 / 0.735^2 =>
+  # %% vf = 0.1175 //0.352608
+  # FLUTTER_SPEED_INDEX = 0.1175
+  # %
+  # % The airfoil mass ratio
+  # % The airfoil mass ratio = mu = m / (pi * rho * (c/2)**2)
+  # % 400*1.1/(pi*0.4*1.5**2)
+  # AIRFOIL_MASS_RATIO = 155.6
+#+end_src
+
+** SU2 input file
+:PROPERTIES:
+:header-args: :tangle ./SU2runs/HBOnera/su2.cfg :mkdirp yes
+:END:
+
+*** Fluid solver
+#+begin_src org
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  %                                                                              %
+  % SU2 configuration file                                                       %
+  % Case description: NACA0012 Laminar simulation (Re 5000)                      %
+  % Author: Francisco Palacios                                                   %
+  % Institution: Stanford University                                             %
+  % Date: Sep 28, 2012                                                           %
+  % File Version 5.0.0 "Raven"                                                %
+  %                                                                              %
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  % ------------- DIRECT, ADJOINT, AND LINEARIZED PROBLEM DEFINITION ------------%
+  %
+  % Physical governing equations (EULER, NAVIER_STOKES, NS_PLASMA)
+  %                               
+  SOLVER = EULER
+  %REF_DIMENSIONALIZATION= DIMENSIONAL ?? comment or uncomment
+  MATH_PROBLEM= DIRECT
+  %
+  RESTART_SOL= NO
+  READ_BINARY_RESTART= NO
+  %
+  OUTPUT_WRT_FREQ=500
+  SCREEN_WRT_FREQ_INNER= 1   
+#+end_src
+*** Free-stream conditions
+#+begin_src org :noweb yes
+  % -------------------- COMPRESSIBLE FREE-STREAM DEFINITION --------------------%
+  %
+  AOA= 0.0
+  FREESTREAM_TEMPERATURE= <<python_parameters(output="FREESTREAM_TEMPERATURE")>>
+  FREESTREAM_PRESSURE= <<python_parameters(output="FREESTREAM_PRESSURE")>>
+  MACH_NUMBER= <<python_parameters(output="MACH_NUMBER")>>
+  SIDESLIP_ANGLE= 0.0  
+#+end_src
+*** Harmonic balance solver
+**** Unsteady settings
+#+begin_src org
+  % ------------------------- UNSTEADY SIMULATION -------------------------------%
+  %%%%%%n
+  % Unsteady simulation (NO, TIME_STEPPING, DUAL_TIME_STEPPING-1ST_ORDER, 
+  %                      DUAL_TIME_STEPPING-2ND_ORDER, HARMONIC_BALANCE)
+  TIME_MARCHING= HARMONIC_BALANCE
+  %
+  % Number of time instances (Zones)
+  TIME_INSTANCES= 3
+  % 
+  % Period of Harmonic Balance simulation
+  HB_PERIOD= 0.1257
+  %
+  HB_PRECONDITION= YES
+  % List of frequencies to be resolved for harmonic balance method
+  OMEGA_HB = (0,50.,-50)
+  % 10 periods: 0.5888756403287397
+  %
+  % Number of internal iterations (dual time method)
+  %%INNER_ITER= 110
+  ITER= 10000
+  %
+  % Starting direct iteration for unsteady adjoint
+  %%UNST_ADJOINT_ITER= 251
+  % ----------------------- DYNAMIC MESH DEFINITION -----------------------------%
+  SURFACE_MOVEMENT= (DEFORMING, DEFORMING)
+  MODAL_IMPOSED= YES
+  BOUNDARY_VELOCITY= NO
+  HB_VELOCITY= YES
+  MODAL_AEROELASTICITY= YES
+  %%HB_AEROELASTICITY= YES
+  %
+  %
+  % Motion mach number (non-dimensional). Used for initializing a viscous flow
+  % with the Reynolds number and for computing force coeffs. with dynamic meshes.
+  MACH_MOTION= 0.78
+  %
+  % Moving wall boundary marker(s) (NONE = no marker, ignored for RIGID_MOTION)
+  MARKER_MOVING= (wing, strut)
+
+#+end_src
+**** Constant parameters and input modes
+#+begin_src org
+  % -------------- AEROELASTIC SIMULATION (Typical Section Model) ---------------%
+  % Activated by GRID_MOVEMENT_KIND option
+  %
+  STRUCTURE_FILENAME= StructuralModel
+  STRUCTURAL_POINTS= 423  %% to remove
+  STRUCTURAL_DOFS= 3
+  RBF_METHOD= 2
+  %
+  ROOT_WING_CHORD= <<python_parameters(output="ROOT_WING_CHORD")>>
+  TIP_WING_CHORD= <<python_parameters(output="TIP_WING_CHORD")>>
+  WING_SPAN=  <<python_parameters(output="WING_SPAN")>>
+  WING_VOL_TRUN_CONE= <<python_parameters(output="WING_VOL_TRUN_CONE")>>
+  SCALE_PARAM= <<python_parameters(output="SCALE_PARAM")>>
+  FLUTTER_SPEED_INDEX = <<python_parameters(output="FLUTTER_SPEED_INDEX")>>
+  AIRFOIL_MASS_RATIO = <<python_parameters(output="AIRFOIL_MASS_RATIO")>>
+  %
+  % Solve the aeroelastic equations every given number of internal iterations
+  AEROELASTIC_MODES= 4
+  %
+  OMEGA_AERO= (6.0947   21.0989   25.0699   82.9318)
+  %
+  OMEGA_MODE= (50.0 50. 50. 50.)
+  AMPL_MODE = (0.01 0.01 0.01 0.01)
+
+#+end_src
+
+*** Reference values
+#+begin_src org
+  % ---------------------- REFERENCE VALUE DEFINITION ---------------------------%
+  %
+  %
+  %guesstimate for the ref_origin_moment_xyz
+  REF_ORIGIN_MOMENT_X = 28.76
+  REF_ORIGIN_MOMENT_Y = 10
+  REF_ORIGIN_MOMENT_Z = 2.77
+  REF_LENGTH= 3.04
+  REF_AREA= 80.0
+
+#+end_src
+*** Boundary conditions
+#+begin_src org
+  % -------------------- BOUNDARY CONDITION DEFINITION --------------------------%
+  %
+  %
+  MARKER_FAR= ( farfield )
+  MARKER_SYM= ( symmetry )
+  MARKER_EULER= ( wing, strut, fuselage, wing_fairing, strut_fairing )
+  MARKER_PLOTTING= ( wing, strut, fuselage, wing_fairing, strut_fairing )
+  MARKER_MONITORING= ( wing, strut, fuselage, wing_fairing, strut_fairing )
+  %
+#+end_src
+*** Numerical scheme and convergence
+#+begin_src org
+  % ------------- COMMON PARAMETERS DEFINING THE NUMERICAL METHOD ---------------%
+  %
+  %
+  NUM_METHOD_GRAD= WEIGHTED_LEAST_SQUARES
+  CFL_NUMBER= 10
+  CFL_ADAPT= NO
+  CFL_ADAPT_PARAM= ( 1.5, 0.5, 1.0, 100.0 )
+  RK_ALPHA_COEFF= ( 0.66667, 0.66667, 1.000000 )
+  %%ITER= 10000
+  LINEAR_SOLVER= FGMRES
+  LINEAR_SOLVER_ERROR= 1E-4
+  LINEAR_SOLVER_PREC= ILU
+  LINEAR_SOLVER_ITER= 10
+  % -------------------- FLOW NUMERICAL METHOD DEFINITION -----------------------%
+  %
+  %
+  CONV_NUM_METHOD_FLOW= ROE
+  MUSCL_FLOW= YES
+  SLOPE_LIMITER_FLOW= VENKATAKRISHNAN_WANG
+  VENKAT_LIMITER_COEFF= 0.01
+  JST_SENSOR_COEFF= ( 0.55, 0.02 ) 
+  TIME_DISCRE_FLOW= EULER_IMPLICIT
+  %
+  %
+  % --------------------------- CONVERGENCE PARAMETERS --------------------------%
+  %
+  %
+  %CONV_CRITERIA= RESIDUAL
+  CONV_RESIDUAL_MINVAL= -10
+  CONV_STARTITER= 10
+  CONV_CAUCHY_ELEMS= 300
+  CONV_CAUCHY_EPS= 8E-6
+  CONV_FIELD= (DRAG, LIFT)
+#+end_src
+*** Grid deformation and multigrid parameters
+#+begin_src org
+  % -------------------------- MULTIGRID PARAMETERS -----------------------------%
+  %
+  %
+  % Multi-Grid Levels (0 = no multi-grid)
+  MGLEVEL= 0
+  MGCYCLE= V_CYCLE
+  MG_PRE_SMOOTH= ( 1, 2, 2, 2 )
+  MG_POST_SMOOTH= ( 0, 0, 0, 0 )
+  MG_CORRECTION_SMOOTH= ( 0, 0, 0, 0 )
+  MG_DAMP_RESTRICTION= 0.85
+  MG_DAMP_PROLONGATION= 0.85
+  %
+  %%%%%n
+  % ------------------------ GRID DEFORMATION PARAMETERS ------------------------%
+  %
+  % Linear solver or smoother for implicit formulations (FGMRES, RESTARTED_FGMRES, BCGSTAB)
+  DEFORM_LINEAR_SOLVER= FGMRES
+  %
+  % Preconditioner of the Krylov linear solver (ILU, LU_SGS, JACOBI)
+  DEFORM_LINEAR_SOLVER_PREC= LU_SGS
+  %
+  % Number of smoothing iterations for mesh deformation
+  DEFORM_LINEAR_SOLVER_ITER= 15
+  %
+  % Number of nonlinear deformation iterations (surface deformation increments)
+  %
+  % Print the residuals during mesh deformation to the console (YES, NO)
+  DEFORM_CONSOLE_OUTPUT= YES
+  %
+  % Minimum residual criteria for the linear solver convergence of grid deformation
+  DEFORM_LINEAR_SOLVER_ERROR= 1E-9
+  %
+  % Type of element stiffness imposed for FEA mesh deformation (INVERSE_VOLUME, 
+  %                                          WALL_DISTANCE, CONSTANT_STIFFNESS)
+  %DEFORM_STIFFNESS_TYPE= WALL_DISTANCE
+  %
+#+end_src
+*** Input/output information
+#+begin_src org
+  % ------------------------- INPUT/OUTPUT INFORMATION --------------------------%
+  %
+  % Mesh input file
+  MESH_FILENAME= 0901_inv.su2
+  MESH_FORMAT= SU2
+  TABULAR_FORMAT= CSV
+  SCREEN_OUTPUT= (INNER_ITER, WALL_TIME, CAUCHY_DRAG, RMS_DENSITY, AERO_COEFF)
+  HISTORY_OUTPUT= (ITER, FLOW_COEFF, CAUCHY, RMS_RES, AERO_COEFF)
+  VOLUME_OUTPUT= (COORDINATES, SOLUTION, PRIMITIVE, MESH_QUALITY)
+  OUTPUT_FILES= ( RESTART_ASCII, SURFACE_CSV, PARAVIEW, SURFACE_PARAVIEW)
+  %
+  %
+  SOLUTION_FILENAME= restart_flow_onera_inv_0901.csv
+  RESTART_FILENAME= restart_flow_onera_inv_0901.csv
+  CONV_FILENAME= history_onera_inv_0901.csv
+  VOLUME_FILENAME= soln_volume_onera_inv_0901.csv
+  SURFACE_FILENAME= soln_surface_onera_inv_0901.csv 
+  %
+  WRT_FORCES_BREAKDOWN= YES
+
+#+end_src
+
+
+
+* Mesh deformation workflow
+
+** file for HPC submission
+#+begin_src org :tangle ~/programs/RHEAtools/data/out/ONERA/MeshDeformation/run.pbs :mkdirp yes
+  #!/bin/sh
+  #PBS -l walltime=07:59:00
+  #PBS -l select=1:ncpus=1:mem=200gb
+  ###:mpiprocs=16
+  ###PBS -l select=1:ncpus=8:mem=16gb
+
+  module load intel-suite/2020.2
+  module load mpi/intel-2019.8.254
+  module load anaconda3/personal
+
+
+  export SU2_RUN=/rds/general/user/ac5015/home/programs/SU2_dev/bin
+  export SU2_HOME=/rds/general/user/ac5015/home/programs/SU2_dev
+  export PATH=$PATH:$SU2_RUN
+  export PYTHONPATH=$PYTHONPATH:$SU2_RUN
+
+  cd $PBS_O_WORKDIR
+  SU2_DEF deformation.cfg > log.txt 2> err.txt
+  ##cp -r ./* $PBS_O_WORKDIR
+
+#+end_src
+
+** Config file for SU2 deformation
+#+begin_src org :tangle ~/programs/RHEAtools/data/out/ONERA/MeshDeformation/deformation.cfg :mkdirp yes
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  %                                                                              %
+  % SU2 configuration file                                                       %
+  % Case description: NACA0012 Laminar simulation (Re 5000)                      %
+  % Author: Francisco Palacios                                                   %
+  % Institution: Stanford University                                             %
+  % Date: Sep 28, 2012                                                           %
+  % File Version 5.0.0 "Raven"                                                %
+  %                                                                              %
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  %
+  MESH_OUT_FILENAME= mesh_out.su2
+  % deformation params
+
+  DV_KIND= SURFACE_FILE
+  %
+  % Marker of the surface in which we are going apply the shape deformation
+  DV_MARKER= ( wing, strut)
+
+  DV_FILENAME= sbw_def.dat
+
+  DV_PARAM= ( 1, 0.5 )
+  %
+  % Value of the shape deformation
+  DV_VALUE= 0.01
+
+  % ---------------- MESH DEFORMATION PARAMETERS (NEW SOLVER) -------------------%
+  %
+  % Use the reformatted pseudo-elastic solver for grid deformation
+  DEFORM_MESH= YES
+  %
+  % Moving markers which deform the mesh
+  MARKER_DEFORM_MESH = ( wing, strut)
+
+  % ------------------------ GRID DEFORMATION PARAMETERS ------------------------%
+  %
+  % Linear solver or smoother for implicit formulations (FGMRES, RESTARTED_FGMRES, BCGSTAB)
+  DEFORM_LINEAR_SOLVER= FGMRES
+  %
+  % Preconditioner of the Krylov linear solver (ILU, LU_SGS, JACOBI)
+  DEFORM_LINEAR_SOLVER_PREC= ILU
+  %
+  % Number of smoothing iterations for mesh deformation
+  DEFORM_LINEAR_SOLVER_ITER= 1000
+  %
+  % Number of nonlinear deformation iterations (surface deformation increments)
+  DEFORM_NONLINEAR_ITER= 3
+  %
+  % Minimum residual criteria for the linear solver convergence of grid deformation
+  DEFORM_LINEAR_SOLVER_ERROR= 1E-14
+  %
+  % Print the residuals during mesh deformation to the console (YES, NO)
+  DEFORM_CONSOLE_OUTPUT= YES
+  %
+  % Deformation coefficient (linear elasticity limits from -1.0 to 0.5, a larger
+  % value is also possible)
+  DEFORM_COEFF = 1E6
+  %
+  % Type of element stiffness imposed for FEA mesh deformation (INVERSE_VOLUME,
+  %                                           WALL_DISTANCE, CONSTANT_STIFFNESS)
+  DEFORM_STIFFNESS_TYPE= WALL_DISTANCE
+  %
+  % Deform the grid only close to the surface. It is possible to specify how much
+  % of the volumetric grid is going to be deformed in meters or inches (1E6 by default)
+  DEFORM_LIMIT = 1E6
+  %
+  % Visualize the surface deformation (NO, YES)
+  %%VISUALIZE_SURFACE_DEF= YES
+  %
+  % Visualize the volume deformation (NO, YES)
+  %%VISUALIZE_VOLUME_DEF= YES
+  %
+  % ------------------------- INPUT/OUTPUT INFORMATION --------------------------%
+  %
+  % Mesh input file
+  MESH_FILENAME= ../0901_inv.su2
+  MESH_FORMAT= SU2
+  TABULAR_FORMAT= CSV
+  SCREEN_OUTPUT= (INNER_ITER, WALL_TIME, CAUCHY_DRAG, RMS_DENSITY, AERO_COEFF)
+  HISTORY_OUTPUT= (ITER, FLOW_COEFF, CAUCHY, RMS_RES, AERO_COEFF)
+  VOLUME_OUTPUT= (COORDINATES, SOLUTION, PRIMITIVE)
+  OUTPUT_FILES= (PARAVIEW, SURFACE_PARAVIEW, SURFACE_CSV)
+  %
+  %
+  SOLUTION_FILENAME= restart_flow_00001.csv
+  RESTART_FILENAME= restart_flow.csv
+  CONV_FILENAME= history.csv
+  VOLUME_FILENAME= cube_volume
+  SURFACE_FILENAME= cube_surface
+  %
+  %
+  %%%%%%%%%%%%%%%%% SOLVER STUFF NOT NEEDED BELOW %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  %
+  %%%%%%%%%%
+  %%%%
+  %%%%%%%%%%%%%%
+  % ------------- DIRECT, ADJOINT, AND LINEARIZED PROBLEM DEFINITION ------------%
+  %
+  % Physical governing equations (EULER, NAVIER_STOKES, NS_PLASMA)
+  %                               
+  SOLVER = EULER
+  KIND_TURB_MODEL= SA
+  %REF_DIMENSIONALIZATION= DIMENSIONAL
+  MATH_PROBLEM= DIRECT
+  %
+  RESTART_SOL= NO 
+  %WRT_BINARY_RESTART= NO
+  READ_BINARY_RESTART= NO
+  %
+  OUTPUT_WRT_FREQ=500
+  %WRT_CON_FREQ= 1
+  SCREEN_WRT_FREQ_INNER= 1 
+  %
+  %
+  % -------------------- COMPRESSIBLE FREE-STREAM DEFINITION --------------------%
+  %
+  %
+  AOA=0.0
+  FREESTREAM_TEMPERATURE= 216.8
+  FREESTREAM_PRESSURE= 22700
+  %
+  MACH_NUMBER= 0.1
+  SIDESLIP_ANGLE= 0
+  %
+  %
+  % ---------------------- REFERENCE VALUE DEFINITION ---------------------------%
+  %
+  %
+  REF_ORIGIN_MOMENT_X =  18.69785158218998
+  REF_ORIGIN_MOMENT_Y =  13.64147072826965
+  REF_ORIGIN_MOMENT_Z =  -842.8566005053888
+  REF_LENGTH= 2.6950583953298897
+  REF_AREA= 78.96857561264771
+  %
+  %
+  % -------------------- BOUNDARY CONDITION DEFINITION --------------------------%
+  %
+  %
+  MARKER_FAR= ( farfield )
+  MARKER_EULER= ( wing, strut, fuselage, wing_fairing, strut_fairing)
+  MARKER_SYM=( symmetry )
+  MARKER_PLOTTING= ( wing, strut, fuselage, wing_fairing, strut_fairing)
+  MARKER_MONITORING= ( wing, strut, fuselage, wing_fairing, strut_fairing)
+  MARKER_ANALYZE= ( wing, strut, fuselage, wing_fairing, strut_fairing)
+  %
+  % ------------- COMMON PARAMETERS DEFINING THE NUMERICAL METHOD ---------------%
+  %
+  %
+  NUM_METHOD_GRAD= WEIGHTED_LEAST_SQUARES
+  CFL_NUMBER= 1 
+  CFL_ADAPT= NO
+  CFL_ADAPT_PARAM= ( 1.5, 0.5, 1.0, 100.0 )
+  RK_ALPHA_COEFF= ( 0.66667, 0.66667, 1.000000 )
+  ITER= 1
+  LINEAR_SOLVER= FGMRES
+  LINEAR_SOLVER_ERROR= 1E-10
+  LINEAR_SOLVER_PREC= ILU
+  LINEAR_SOLVER_ITER= 10
+  %
+  %
+  % -------------------------- MULTIGRID PARAMETERS -----------------------------%
+  %
+  %
+  % Multi-Grid Levels (0 = no multi-grid)
+  MGLEVEL= 0
+  MGCYCLE= V_CYCLE
+  MG_PRE_SMOOTH= ( 1, 2, 2, 2 )
+  MG_POST_SMOOTH= ( 0, 0, 0, 0 )
+  MG_CORRECTION_SMOOTH= ( 0, 0, 0, 0 )
+  MG_DAMP_RESTRICTION= 0.85
+  MG_DAMP_PROLONGATION= 0.85
+  %
+  %
+  % -------------------- FLOW NUMERICAL METHOD DEFINITION -----------------------%
+  %
+  %
+  CONV_NUM_METHOD_FLOW= ROE
+  MUSCL_FLOW= YES
+  SLOPE_LIMITER_FLOW= VENKATAKRISHNAN_WANG
+  VENKAT_LIMITER_COEFF= 0.03 
+  JST_SENSOR_COEFF= ( 0.55, 0.02 ) 
+  TIME_DISCRE_FLOW= EULER_IMPLICIT
+  %
+  %
+  % --------------------------- CONVERGENCE PARAMETERS --------------------------%
+  %
+  %
+  %CONV_CRITERIA= RESIDUAL
+  CONV_RESIDUAL_MINVAL= -10
+  CONV_STARTITER= 10
+  CONV_CAUCHY_ELEMS= 300
+  CONV_CAUCHY_EPS= 1E-8
+  CONV_FIELD= DRAG
+  %
+  % Convective numerical method (SCALAR_UPWIND)
+  CONV_NUM_METHOD_TURB= SCALAR_UPWIND
+  MUSCL_TURB= YES
+  SLOPE_LIMITER_TURB= VENKATAKRISHNAN_WANG
+  TIME_DISCRE_TURB= EULER_IMPLICIT
+  CFL_REDUCTION_TURB= 1.0
+  %
+
+#+end_src
+
+** Copy deformed modal shapes files to HPC and run deformation
+#+begin_src shell :tangle ~/programs/RHEAtools/data/out/ONERA/MeshDeformation/hpc.sh :mkdirp yes
+  #!/usr/bin/zsh
+  NUM_MODES=4
+  DIR1=$HOME/programs/RHEAtools
+  for i in {0..$NUM_MODES}
+    do
+        echo "Copying Interpolated Mode $i"
+        sshpass -f $DIR1/examples/pas ssh ac5015@login.hpc.imperial.ac.uk << EOF
+        cd $HOME/runs	     
+        mkdir -p "ONERA_fac10/MeshDeformation/M$i"
+    exit
+  EOF
+        sshpass -f $DIR1/examples/pas scp $DIR1/data/out/ONERA/MeshDeformation/SU2_mesh/M$i/sbw_fordef.dat ac5015@login.hpc.imperial.ac.uk:$HOME/runs/ONERA_fac10/MeshDeformation/M$i/sbw_fordef.dat
+
+        echo "Submitting Mode $i"
+        sshpass -f $DIR1/examples/pas scp $DIR1/data/out/ONERA/MeshDeformation/run.pbs ac5015@login.hpc.imperial.ac.uk:$HOME/runs/ONERA_fac10/MeshDeformation/M$i/run.pbs
+        sshpass -f $DIR1/examples/pas scp $DIR1/data/out/ONERA/MeshDeformation/deformation.cfg ac5015@login.hpc.imperial.ac.uk:$HOME/runs/ONERA_fac10/MeshDeformation/M$i/deformation.cfg
+
+        sshpass -f $DIR1/examples/pas ssh ac5015@login.hpc.imperial.ac.uk << EOF
+        qsub $HOME/runs/ONERA_fac10/MeshDeformation/M$i/run.pbs
+    exit
+  EOF
+
+  done
+
+
+#+end_src
+
+
+* Steady computation workflow

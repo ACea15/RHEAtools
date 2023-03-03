@@ -1,0 +1,436 @@
+#+TITLE: POLIMI/ONERA SBW Model
+#+OPTIONS: toc:nil
+#+LATEX_HEADER: \usepackage[margin=1in]{geometry}
+
+#+begin_comment
+#+LATEX_HEADER: \let\oldsection\section
+#+LATEX_HEADER: \renewcommand{\section}{\clearpage\oldsection}
+#+LATEX_HEADER: \let\oldsubsection\subsection
+#+LATEX_HEADER: \renewcommand{\subsection}{\clearpage\oldsubsection}
+#+end_comment
+
+* House keeping :noexport:
+#+begin_src elisp :results none :tangle no :exports none
+  (add-to-list 'org-structure-template-alist
+  '("sp" . "src python :session py1"))
+  (add-to-list 'org-structure-template-alist
+  '("se" . "src elisp"))
+
+  (setq org-confirm-babel-evaluate nil)
+  (setq org-latex-pdf-process (list "latexmk -f -pdf -interaction=nonstopmode -output-directory=%o %f"))
+  (setq org-image-actual-width nil)
+
+(defun org/get-headline-string-element  (headline backend info)
+  (let ((prop-point (next-property-change 0 headline)))
+    (if prop-point (plist-get (text-properties-at prop-point headline) :parent))))
+
+(defun org/ensure-latex-clearpage (headline backend info)
+  (when (org-export-derived-backend-p backend 'latex)
+    (let ((elmnt (org/get-headline-string-element headline backend info)))
+      (when (member "newpage" (org-element-property :tags elmnt))
+        (concat "\\clearpage\n" headline)))))
+
+(add-to-list 'org-export-filter-headline-functions
+             'org/ensure-latex-clearpage)
+#+end_src
+
+#+begin_src emacs-lisp  :session py1 :results none :tangle nil :exports none
+  (pyvenv-workon "nastran")
+  (require 'org-tempo)
+#+end_src
+* Load modules :noexport:
+#+begin_src python :session py1 :results none
+  import parametric_analysis
+  import plotly.express as px
+  import pandas as pd
+  import matplotlib.pyplot as plt
+  from tabulate import tabulate
+#+end_src
+* Boilerplate src :noexport:
+#+name: pd2org
+#+begin_src python :var df="df" :exports none
+  return f"return tabulate({df}, headers={df}.columns, tablefmt='orgtbl')"
+#+end_src
+
+#+RESULTS: pd2org
+: return tabulate(df, headers=df.columns, tablefmt='orgtbl')
+
+#+name: savefig
+#+begin_src python :var figname="plot.svg" width=5 height=5 :exports none
+  return f"""plt.savefig('{figname}')
+  '{figname}'"""
+#+end_src
+
+#+RESULTS: savefig
+: plt.savefig('plot.svg')
+: 'plot.svg'
+
+* Read results :noexport:
+:PROPERTIES:
+:header-args: :eval never-export :exports none
+:END:
+
+#+begin_src python :session py1 :results none
+  main_folder = "/home/ac5015/pCloudDrive/Imperial/PostDoc/models_POLIMI/"
+  #main_folder = "/home/acea/pCloudDrive/Imperial/PostDoc/models_POLIMI/"
+  #main_folder = "/Users/acea/pCloud Drive/Imperial/PostDoc/models_POLIMI/"
+  files = []
+  files += [f"shift_conm2s2_{xi}" for xi in range(11)]
+  files += [f"shift_conm2s4_{xi}" for xi in range(11)]
+  files += [f"shift_conm2sL15_{xi}" for xi in range(11)]
+  files += [f"shift_conm2sL30_{xi}" for xi in range(11)]
+  files += [f"shift_conm2sLM40_{xi}" for xi in range(11)]
+  files += [f"shift_conm2sLM30_{xi}" for xi in range(11)]
+  files += [f"shift_conm2sLM25_{xi}" for xi in range(11)]
+
+  # files += [f"shift_panels3_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
+  files += [f"shift_panels4_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
+  # files += [f"shift_panels2_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
+  files += [f"shift_panelsL15_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
+  files += [f"shift_panelsL30_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
+  files += [f"shift_panelsLM30_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
+  #files += [f"shift_panelsLM40_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
+  files += [f"shift_panelsLM25_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
+
+  #files += [f"shift_panelsLM15_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]  
+  files += [f"modify_pbeams_{xi}" for xi in range(5)]
+  #files += [f"modify_pbeamsL15_{xi}" for xi in range(5)]
+  #files += [f"modify_pbeamsL30_{xi}" for xi in range(5)]
+  files += [f"modify_pbeamsLM25_{xi}" for xi in range(5)]
+  #files += [f"modify_pbeamsLM40_{xi}" for xi in range(5)]
+  files += [f"modify_pbeamsLM30_{xi}" for xi in range(5)]
+  files += [f"modify_pbeamsLM15_{xi}" for xi in range(5)]
+
+  collector_list = ['sol145']
+  collector = {ci: None for ci in collector_list}
+  results = parametric_analysis.build_flutter(main_folder, files, Modes=range(15), collector=collector)
+
+  parametric_vars = {f"shift_conm2s{i}": [0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25] for i in [2, 4]}
+  parametric_vars.update({f"shift_conm2sL{i}": [0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25] for i in [15, 30]})
+  parametric_vars.update({f"shift_conm2sLM{i}": [0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25] for i in [30, 40, 25]})
+  parametric_vars.update({f"shift_panels4": [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]})
+  parametric_vars.update({f"shift_panelsL{i}": [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25] for i in [15, 30]})
+  parametric_vars.update({f"shift_panelsLM{i}": [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25] for i in [30, 25]})
+  #parametric_vars.update({f"modify_pbeams": range(5)})
+  parametric_vars.update({f"modify_pbeamsLM{i}": range(5) for i in [15, 30, 25]})
+  #parametric_vars.update({f"modify_pbeamsLM30": range(5)})
+
+  results_df = parametric_analysis.build_results_df(files,
+                                                   parametric_vars,
+                                                   results)
+#+end_src
+
+* Structural and aerodynamic model 
+- Framework in place to map data between structural and aerodynamic models
+- Parameterised Nastran model for the strut in order to increase flutter.  
+- Current mismatch in strut-wing attachment point between aerodynamic mesh and structural model.
+- Aerodynamic mesh deformed with modal shapes from in-house Nastran post-processor. 
+- Steady CFD simulations up-and-running; flutter simulations in SU2 pending.
+  
+#+CAPTION: Combined models from ONERA (CFD mesh) and and POLIMI (panels representation from structural model)
+#+ATTR_LATEX: :width 0.85\textwidth 
+[[./img/su2_polimi-ref.png]]
+
+\newpage
+** CFD steady simulations in SU2
+
+SU2 mesh produced from ONERA model by our colleagues. Comparisons carried out for RANS simulations. We use Euler solvers for flutter and the following steady simulations are reasonable.   
+#+CAPTION: Cp field, View 1
+#+ATTR_LATEX: :width 0.7\textwidth 
+[[./img/su2_steady-cp1.png]]
+
+#+CAPTION: Cp field, , View 2
+#+ATTR_LATEX: :width 0.7\textwidth 
+[[./img/su2_steady-cp2.png]]
+
+\newpage
+** Modal shapes from Nastran in a clamped configuration
+Process built to create modal shapes:
+- Run Nastran 103 solution.
+- Read the beam and rigid connectors (RBE2s) positions from .bdf file and corresponding displacements from .op2 file.
+- Select a number of chordwise divisions and build the data matrix of locations and displacements.
+- Create Paraview file from data.
+  
+#+CAPTION: Modal shape 1 
+#+ATTR_LATEX: :width 0.75\textwidth 
+[[./img/polimi-M0.png]]
+
+#+CAPTION: Modal shape 2
+#+ATTR_LATEX: :width 0.75\textwidth 
+[[./img/polimi-M1.png]]
+
+#+CAPTION: Modal shape 3
+#+ATTR_LATEX: :width 0.75\textwidth 
+[[./img/polimi-M2.png]]
+
+#+CAPTION: Modal shape 4
+#+ATTR_LATEX: :width 0.75\textwidth :placement [!htpb]
+[[./img/polimi-M3.png]]
+
+\newpage
+** Mesh deformation in SU2
+
+We deform the initial SU2 mesh with the modal shapes data previously described; with this we can perform a flutter solution via a Harmonic Balanced solver.
+
+#+CAPTION: Deformed SU2 mesh for flutter analysis
+#+ATTR_LATEX: :width 0.95\textwidth
+#+ATTR_ORG: :width 100
+[[./img/ONERA_M1.png]]
+
+* Baseline Flutter analysis (Nastran-based)
+
+- Cruise analysis ($U_\infty = 252.8 m/s$ $M_\infty = 0.79$, $Altitude = 7000 m$)
+- Flutter speed:  \approx 171 m/s (33% below cruise speed)
+- Design approaches to increase flutter:
+  - Shifting of panels
+  - Movement of masses
+  - Change stiffness
+
+The following Vg-Vf and root-locus plots were produced for the base-line model:
+#+NAME: baseline_flutter_vgvf
+#+begin_src python :session py1 :results value file  :exports results :var name=(org-element-property :name (org-element-context))
+  fig1 = f"./img/{name}.png"
+  results["shift_conm2sLM25_0"]['sol145'].obj.plot_vg_vf(modes=range(1, 15),
+                                                         ylim_damping=[-0.15, 0.03],
+                                                         ylim_freq=[0.75, 5],
+                                                         legend=True)
+  #<<savefig(figname=fig1)>>
+  plt.savefig(fig1)
+  plt.close()
+  fig1
+  #+end_src
+
+#+CAPTION: Vg-Vf graph baseline configuration 
+#+ATTR_LATEX: :width 0.75\textwidth 
+#+RESULTS: baseline_flutter_vgvf
+[[file:./img/baseline_flutter_vgvf.png]]
+
+#+NAME: baseline_flutter_rootlocus
+#+caption: Root-locus graphs
+#+begin_src python :session py1 :results value file  :exports results :var name=(org-element-property :name (org-element-context))
+  #fig = plt.figure()
+  #axes = fig.add_subplot(111)
+  fig1 = f"./img/{name}.png"
+  results["shift_conm2sLM30_0"]['sol145'].obj.plot_root_locus(#fig=fig,axes=axes,
+                                                              modes=range(1, 15),
+                                                              xlim=[-4, 0.5],
+                                                              legend=False, show=False)
+  #<<savefig(figname=fig1)>>
+  plt.savefig(fig1)
+  plt.close()
+  fig1
+#+end_src
+
+#+CAPTION: Root-locus graph baseline configuration
+#+ATTR_LATEX: :width 0.7\textwidth
+#+RESULTS: baseline_flutter_rootlocus
+[[file:./img/baseline_flutter_rootlocus.png]]
+
+\newpage
+* Parametric analysis
+** Masses shifting
+
+In the next table the variation of flutter is shown as we move the masses on the strut along the chord.  
+#+NAME: SHIFT_CONM2s
+#+begin_src python :session py1 :results raw :exports results
+  df_ = results_df['shift_conm2sLM25']
+  df_ = df_.rename(columns={"xlabel": "%Chord"})
+  tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
+#+end_src
+
+#+ATTR_LATEX: :width 0.7\textwidth :environment longtable :caption  
+  #+RESULTS: SHIFT_CONM2s
+  | flutter | flutter_mode | %Chord |
+  |---------+--------------+--------|
+  | 170.437 |            2 |      0 |
+  | 162.794 |            2 |  -0.05 |
+  | 156.675 |            2 |   -0.1 |
+  | 151.591 |            2 |  -0.15 |
+  | 147.201 |            2 |   -0.2 |
+  | 143.348 |            2 |  -0.25 |
+  | 180.694 |            2 |   0.05 |
+  | 197.301 |            2 |    0.1 |
+  | 243.256 |           11 |   0.15 |
+  | 236.596 |           13 |    0.2 |
+  |  210.99 |           13 |   0.25 |
+
+A 0.15 shift of the masses changes the flutter mode thereby increasing the flutter speed to nearly the cruise speed.
+#+NAME: SHIFT_CONM2_flutter_vgvf
+#+begin_src python :session py1 :results value file  :exports results :var name=(org-element-property :name (org-element-context))
+  fig1 = f"./img/{name}.png"
+  results["shift_conm2sLM25_8"]['sol145'].obj.plot_vg_vf(modes=range(1, 15),
+                                                         ylim_damping=[-0.04, 0.03],
+                                                         ylim_freq=[0.75, 5],
+                                                         legend=True)
+  #<<savefig(figname=fig1)>>
+  plt.savefig(fig1)
+  plt.close()
+  fig1
+#+end_src
+
+#+CAPTION: Vg-Vf graph baseline configuration 
+#+ATTR_LATEX: :width 0.9\textwidth 
+  #+RESULTS: SHIFT_CONM2_flutter_vgvf
+  [[file:./img/SHIFT_CONM2_flutter_vgvf.png]]
+
+** Panels shifting
+
+In the next table the variation of flutter is shown as we move the strut aerodynamic panels chordwise.   
+#+NAME: SHIFT_PANELS
+#+begin_src python :session py1 :results raw :exports results
+  df_ = results_df['shift_panelsLM25']
+  df_ = df_.rename(columns={"xlabel": "%Chord"})
+  tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
+#+end_src
+
+#+RESULTS: SHIFT_PANELS
+| flutter | flutter_mode | %Chord |
+|---------+--------------+--------|
+| 175.836 |            2 |  -0.25 |
+| 174.666 |            2 |   -0.2 |
+| 173.526 |            2 |  -0.15 |
+| 172.444 |            2 |   -0.1 |
+| 170.437 |            2 |      0 |
+| 168.699 |            2 |    0.1 |
+| 167.903 |            2 |   0.15 |
+| 167.087 |            2 |    0.2 |
+| 166.464 |            2 |   0.25 |
+
+When shifted -0.25% the next Vg-Vf graph is obtained,
+#+NAME: SHIFT_PANELS_flutter025_vgvf
+#+begin_src python :session py1 :results value file  :exports results :var name=(org-element-property :name (org-element-context))
+  fig1 = f"./img/{name}.png"
+  results["shift_panelsLM25_-0.25"]['sol145'].obj.plot_vg_vf(modes=range(1, 15),
+                                                         ylim_damping=[-0.04, 0.03],
+                                                         ylim_freq=[0.75, 5],
+                                                         legend=True)
+  #<<savefig(figname=fig1)>>
+  plt.savefig(fig1)
+  plt.close()
+  fig1
+#+end_src
+
+#+RESULTS: SHIFT_PANELS_flutter025_vgvf
+[[file:./img/SHIFT_PANELS_flutter025_vgvf.png]]
+
+while when it positive 0.25% we get the following, 
+#+NAME: SHIFT_PANELS_flutter-025_vgvf
+#+begin_src python :session py1 :results value file  :exports results :var name=(org-element-property :name (org-element-context))
+  fig1 = f"./img/{name}.png"
+  results["shift_panelsLM25_0.25"]['sol145'].obj.plot_vg_vf(modes=range(1, 15),
+                                                         ylim_damping=[-0.04, 0.03],
+                                                         ylim_freq=[0.75, 5],
+                                                         legend=True)
+  #<<savefig(figname=fig1)>>
+  plt.savefig(fig1)
+  plt.close()
+  fig1
+#+end_src
+
+#+RESULTS: SHIFT_PANELS_flutter-025_vgvf
+[[file:./img/SHIFT_PANELS_flutter-025_vgvf.png]]
+
+
+** Beam area 
+The last varied parameter is the area of the beam of the strut component. In the next table the variation of flutter is shown as it is multiplied by a factor. 
+#+NAME: beam_area
+#+begin_src python :session py1 :results raw :exports results
+  df_ = results_df['modify_pbeamsLM25']
+  df_ = df_.rename(columns={"xlabel": "factor"})
+  df_["factor"] = [0.75, 0.9, 1., 1.1, 1.2]
+  tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
+#+end_src
+
+#+RESULTS: beam_area
+| flutter | flutter_mode | factor |
+|---------+--------------+--------|
+| 191.023 |            2 |   0.75 |
+| 176.216 |            2 |    0.9 |
+| 170.437 |            2 |      1 |
+| 166.224 |            2 |    1.1 |
+| 163.114 |            2 |    1.2 |
+
+As before we plot the VG-Vf graph at the extremes of this range, at 0.75:
+#+NAME: beam_area_flutter075_vgvf
+#+begin_src python :session py1 :results value file  :exports results :var name=(org-element-property :name (org-element-context))
+  fig1 = f"./img/{name}.png"
+  results["modify_pbeamsLM25_0"]['sol145'].obj.plot_vg_vf(modes=range(1, 15),
+                                                         ylim_damping=[-0.04, 0.03],
+                                                         ylim_freq=[0.75, 5],
+                                                         legend=True)
+  #<<savefig(figname=fig1)>>
+  plt.savefig(fig1)
+  plt.close()
+  fig1
+#+end_src
+
+and at 1.2:
+#+NAME: beam_area_flutter1point2_vgvf
+#+begin_src python :session py1 :results value file  :exports results :var name=(org-element-property :name (org-element-context))
+  fig1 = f"./img/{name}.png"
+  results["modify_pbeamsLM25_4"]['sol145'].obj.plot_vg_vf(modes=range(1, 15),
+                                                         ylim_damping=[-0.04, 0.03],
+                                                         ylim_freq=[0.75, 5],
+                                                         legend=True)
+  #<<savefig(figname=fig1)>>
+  plt.savefig(fig1)
+  plt.close()
+  fig1
+#+end_src
+
+* Further (possible) steps
+- More investigation into the flutter results. 
+- Couple the parametric tool with GEMSEO to search for a sensible combination that gets the flutter speed above the flight-envelope. 
+- Plug the model into SHARPy to assess geometrical nonlinear effects.
+- Comparisons with high-fidelity flutter calculations in SU2, i.e. transonic effects.
+  
+
+* COMMENT Calculator :noexport:
+
+#+BEGIN_SRC calc
+fsolve([x + y = a, x - y = b],[x,y])
+#+END_SRC
+
+#+RESULTS:
+: [x = a + (b - a) / 2, y = (a - b) / 2]
+
+#+BEGIN_SRC calc :var x=5 :var y=2
+2+a*x**y
+#+END_SRC
+
+#+RESULTS:
+: 25 a + 2
+
+#+HEADERS: :includes <math.h> :flags -lm 
+#+HEADERS: :var x=1.0 :var y=4.0 :var z=10.0
+#+BEGIN_SRC C 
+  double pi = 4*atan(1);
+  double r, theta, phi;
+  r = sqrt(x*x+y*y+z*z);
+  theta = acos(z/r);
+  phi = atan2(y,x);
+  printf("%f %f %f", r, theta, phi);
+#+END_SRC
+
+#+RESULTS:
+: 10.816654 0.391074 1.325818
+
+#+RESULTS: blockA
+: I am blockA
+
+#+NAME: a-name 
+#+BEGIN_SRC python :var name=(org-element-property :name (org-element-context)) :results output
+  print(name)
+#+END_SRC
+
+#+RESULTS: a-name
+: a-name
+
+#+begin_src python :session py1 :results value file  :exports results :var name=(org-element-property :name (org-element-context))
+  fig1 = f"./img/{name}.png"
+  results["shift_panelsLM30_0.0"]['sol145'].obj.plot_vg_vf(modes=range(1, 15),
+                                                           ylim_damping=[-0.15, 0.03],
+                                                           ylim_freq=[0.75, 5],
+                                                           legend=False)
+  <<savefig(figname=fig1)>>
+  #+end_src

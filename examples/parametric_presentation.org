@@ -1,0 +1,450 @@
+#+options: H:1
+#+latex_class: beamer
+#+columns: %45ITEM %10BEAMER_env(Env) %10BEAMER_act(Act) %4BEAMER_col(Col) %8BEAMER_opt(Opt)
+#+beamer_theme: Madrid
+#+beamer_color_theme:
+#+beamer_font_theme:
+#+beamer_inner_theme:
+#+beamer_outer_theme:
+#+beamer_header:
+#+TITLE: POLIMI/ONERA SBW Model
+
+* House keeping :noexport:
+#+begin_src elisp :results none :tangle no :exports none
+  (add-to-list 'org-structure-template-alist
+  '("sp" . "src python :session py1"))
+  (add-to-list 'org-structure-template-alist
+  '("se" . "src elisp"))
+
+  (setq org-confirm-babel-evaluate nil)
+  (setq org-latex-pdf-process (list "latexmk -f -pdf -interaction=nonstopmode -output-directory=%o %f"))
+#+end_src
+
+#+begin_src emacs-lisp  :session py1 :results none :tangle nil :exports none
+  (pyvenv-workon "nastran")
+  (require 'org-tempo)
+#+end_src
+* Load modules :noexport:
+#+begin_src python :session py1 :results none
+  import parametric_analysis
+  import plotly.express as px
+  import pandas as pd
+  import matplotlib.pyplot as plt
+  from tabulate import tabulate
+#+end_src
+* Boilerplate src
+#+name: pd2org
+#+begin_src python :var df="df" :exports none
+  return f"return tabulate({df}, headers={df}.columns, tablefmt='orgtbl')"
+#+end_src
+
+#+RESULTS: pd2org
+: return tabulate(df, headers=df.columns, tablefmt='orgtbl')
+
+#+name: savefig
+#+begin_src python :var figname="plot.svg" width=5 height=5 :exports none
+  return f"""plt.savefig('{figname}')
+  '{figname}'"""
+#+end_src
+
+#+RESULTS: savefig
+: plt.savefig('plot.svg')
+: 'plot.svg'
+
+* Read results :noexport:
+:PROPERTIES:
+:header-args: :eval never-export :exports none
+:END:
+
+#+begin_src python :session py1 :results none
+  main_folder = "/home/ac5015/pCloudDrive/Imperial/PostDoc/models_POLIMI/"
+  #main_folder = "/home/acea/pCloudDrive/Imperial/PostDoc/models_POLIMI/"
+  files = []
+  files += [f"shift_conm2s2_{xi}" for xi in range(11)]
+  files += [f"shift_conm2s4_{xi}" for xi in range(11)]
+  files += [f"shift_conm2sL15_{xi}" for xi in range(11)]
+  files += [f"shift_conm2sL30_{xi}" for xi in range(11)]
+  files += [f"shift_conm2sLM40_{xi}" for xi in range(11)]
+  files += [f"shift_conm2sLM30_{xi}" for xi in range(11)]
+  files += [f"shift_conm2sLM25_{xi}" for xi in range(11)]
+
+  # files += [f"shift_panels3_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
+  files += [f"shift_panels4_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
+  # files += [f"shift_panels2_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
+  files += [f"shift_panelsL15_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
+  files += [f"shift_panelsL30_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
+  files += [f"shift_panelsLM30_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
+  #files += [f"shift_panelsLM40_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
+  files += [f"shift_panelsLM25_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
+
+  #files += [f"shift_panelsLM15_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]  
+  files += [f"modify_pbeams_{xi}" for xi in range(5)]
+  #files += [f"modify_pbeamsL15_{xi}" for xi in range(5)]
+  #files += [f"modify_pbeamsL30_{xi}" for xi in range(5)]
+  files += [f"modify_pbeamsLM25_{xi}" for xi in range(5)]
+  #files += [f"modify_pbeamsLM40_{xi}" for xi in range(5)]
+  files += [f"modify_pbeamsLM30_{xi}" for xi in range(5)]
+  files += [f"modify_pbeamsLM15_{xi}" for xi in range(5)]
+
+  collector_list = ['sol145']
+  collector = {ci: None for ci in collector_list}
+  results = parametric_analysis.build_flutter(main_folder, files, Modes=range(15), collector=collector)
+
+  parametric_vars = {f"shift_conm2s{i}": [0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25] for i in [2, 4]}
+  parametric_vars.update({f"shift_conm2sL{i}": [0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25] for i in [15, 30]})
+  parametric_vars.update({f"shift_conm2sLM{i}": [0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25] for i in [30, 40, 25]})
+  parametric_vars.update({f"shift_panels4": [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]})
+  parametric_vars.update({f"shift_panelsL{i}": [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25] for i in [15, 30]})
+  parametric_vars.update({f"shift_panelsLM{i}": [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25] for i in [30, 25]})
+  #parametric_vars.update({f"modify_pbeams": range(5)})
+  parametric_vars.update({f"modify_pbeamsLM{i}": range(5) for i in [15, 30, 25]})
+  #parametric_vars.update({f"modify_pbeamsLM30": range(5)})
+
+  results_df = parametric_analysis.build_results_df(files,
+                                                   parametric_vars,
+                                                   results)
+#+end_src
+
+* Model
+#+begin_center
+#+CAPTION: Fig1
+#+ATTR_LATEX: :float wrap :width 0.38\textwidth :placement {r}{0.4\textwidth}
+[[./img/su2_steady-cp1.png]]
+
+#+CAPTION: Fig2
+#+ATTR_LATEX: :width 0.3\textwidth
+[[./img/su2_steady-cp2.png]]
+#+end_center
++ ssss
++ dddd
+* Baseline Flutter analysis
+** Col left :BMCOL:
+:PROPERTIES:
+:BEAMER_col: 0.45
+:END:
+- Cruise analysis ($U_\infty = 252.8 m/s$ $M_\infty = 0.79$, $Altitude = 7000 m$)
+- Flutter speed: ~ 171 m/s (33% below cruise speed)
+- Design 
+** Col right :BMCOL:
+:PROPERTIES:
+:BEAMER_col: 0.45
+:END:
+
+#+NAME: baseline_flutter_vgvf
+#+begin_src python :session py1 :results value file  :exports results :var name=(org-element-property :name (org-element-context))
+  fig1 = f"./img/{name}.png"
+  results["shift_conm2sLM30_0"]['sol145'].obj.plot_vg_vf(modes=range(1, 15),
+                                                         ylim_damping=[-0.15, 0.03],
+                                                         ylim_freq=[0.75, 5],
+                                                         legend=False)
+  #<<savefig(figname=fig1)>>
+  plt.savefig(fig1)
+  fig1
+  #+end_src
+
+  #+RESULTS: baseline_flutter_vgvf
+  [[file:./img/baseline_flutter_vgvf.png]]
+
+  #+RESULTS: baseline_flutter
+  [[file:./img/baseline_flutter.png]]
+
+#+NAME: baseline_flutter_rootlocus
+#+begin_src python :session py1 :results value file  :exports results :var name=(org-element-property :name (org-element-context))
+  fig1 = f"./img/{name}.png"
+  results["shift_conm2sLM30_0"]['sol145'].obj.plot_root_locus(modes=range(1, 15),
+                                                              legend=False)
+  #<<savefig(figname=fig1)>>
+  #plt.savefig(fig1)
+  #fig1
+  #+end_src
+
+  [[file:./img/baseline_flutter_rootlocus1.png]]
+
+#+NAME: SHIFT_CONM2s22
+#+header: :noweb strip-export
+#+begin_src python :session py1 :results value file :exports results
+    results["shift_panelsLM30_0.0"]['sol145'].obj.plot_vg_vf(modes=range(1, 15),
+                                                             ylim_damping=[-0.15, 0.03],
+                                                             ylim_freq=[0.75, 5],
+                                                             legend=False)
+    <<savefig(figname="./img/SHIFT_CONM2s22.png")>>
+#+end_src
+
+* Parametric analysis
+#+ATTR_LATEX: :float wrap :width 0.38\textwidth :placement {r}{0.6\textwidth}
+[[./img/su2_steady-cp1.png]]
+
+* Masses shifting
+** Col left :BMCOL:
+:PROPERTIES:
+   :BEAMER_col: 0.45
+   :END:
+
+- topic
+    - subtopic
+    - sub
+- topic
+
+** Col right :BMCOL:
+:PROPERTIES:
+:BEAMER_col: 0.45
+:END:
+
+#+NAME: SHIFT_CONM2s
+  #+begin_src python :session py1 :results raw :exports results
+    df_ = results_df['shift_conm2sLM30']
+    tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
+  #+end_src
+
+#+ATTR_LATEX: :width 0.7\textwidth :environment longtable :caption Table 1 
+  #+RESULTS: SHIFT_CONM2s
+  | flutter | flutter_mode | xlabel |
+  |---------+--------------+--------|
+  | 171.047 |            2 |      0 |
+  | 163.201 |            2 |  -0.05 |
+  | 156.967 |            2 |   -0.1 |
+  | 151.795 |            2 |  -0.15 |
+  | 147.355 |            2 |   -0.2 |
+  | 143.454 |            2 |  -0.25 |
+  | 181.779 |            2 |   0.05 |
+  | 199.079 |            2 |    0.1 |
+  | 139.411 |            9 |   0.15 |
+  | 119.853 |            6 |    0.2 |
+  | 114.543 |            2 |   0.25 |
+* COMMENT Masses shifting
+** Col left :BMCOL:
+:PROPERTIES:
+   :BEAMER_col: 0.45
+   :END:
+
+- topic
+    - subtopic
+    - sub
+- topic
+
+** Col right :BMCOL:
+:PROPERTIES:
+:BEAMER_col: 0.45
+:END:
+
+#+NAME: SHIFT_CONM2s2ss
+#+header: :noweb strip-export
+#+begin_src python :session py1 :results value file  :exports results :var name=(org-element-property :name (org-element-context))
+  fig1 = f"./img/{name}.png"
+  results["shift_panelsLM30_0.0"]['sol145'].obj.plot_vg_vf(modes=range(1, 15),
+                                                           ylim_damping=[-0.15, 0.03],
+                                                           ylim_freq=[0.75, 5],
+                                                           legend=False)
+  <<savefig(figname=fig1)>>
+  #+end_src
+
+
+
+
+#+NAME: SHIFT_CONM2s22
+#+header: :noweb strip-export
+#+begin_src python :session py1 :results value file :exports results
+    results["shift_panelsLM30_0.0"]['sol145'].obj.plot_vg_vf(modes=range(1, 15),
+                                                             ylim_damping=[-0.15, 0.03],
+                                                             ylim_freq=[0.75, 5],
+                                                             legend=False)
+    <<savefig(figname="./img/SHIFT_CONM2s22.png")>>
+#+end_src
+
+* COMMENT Masses shifting
+** Col left :BMCOL:
+:PROPERTIES:
+   :BEAMER_col: 0.45
+   :END:
+
+- topic
+    - subtopic
+    - sub
+- topic
+
+** Col right :BMCOL:
+:PROPERTIES:
+:BEAMER_col: 0.45
+:END:
+
+#+NAME: SHIFT_CONM2s
+  #+begin_src python :session py1 :results raw :exports results
+    df_ = results_df['shift_conm2sLM30']
+    tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
+  #+end_src
+
+#+ATTR_LATEX: :width 0.7\textwidth :environment longtable :caption Table 1 
+  #+RESULTS: SHIFT_CONM2s
+  | flutter | flutter_mode | xlabel |
+  |---------+--------------+--------|
+  | 171.047 |            2 |      0 |
+  | 163.201 |            2 |  -0.05 |
+  | 156.967 |            2 |   -0.1 |
+  | 151.795 |            2 |  -0.15 |
+  | 147.355 |            2 |   -0.2 |
+  | 143.454 |            2 |  -0.25 |
+  | 181.779 |            2 |   0.05 |
+  | 199.079 |            2 |    0.1 |
+  | 139.411 |            9 |   0.15 |
+  | 119.853 |            6 |    0.2 |
+  | 114.543 |            2 |   0.25 |
+
+* COMMENT Masses shifting
+** Col left :BMCOL:
+:PROPERTIES:
+   :BEAMER_col: 0.45
+   :END:
+
+- topic
+    - subtopic
+    - sub
+- topic
+
+** Col right :BMCOL:
+:PROPERTIES:
+:BEAMER_col: 0.45
+:END:
+
+#+NAME: SHIFT_CONM2s2
+#+header: :noweb strip-export
+#+begin_src python :session py1 :results value file :exports results
+  results["shift_panelsLM30_0.0"]['sol145'].obj.plot_vg_vf(modes=range(1, 15))
+  <<savefig(figname="./img/SHIFT_CONM2s2.png")>>
+#+end_src
+
+#+RESULTS: SHIFT_CONM2s2
+[[file:./img/SHIFT_CONM2s2.png]]
+
+
+#+NAME: SHIFT_CONM2s22
+#+header: :noweb strip-export
+#+begin_src python :session py1 :results value file :exports results
+    results["shift_panelsLM30_0.0"]['sol145'].obj.plot_vg_vf(modes=range(1, 15),
+                                                             ylim_damping=[-0.15, 0.03],
+                                                             ylim_freq=[0.75, 5],
+                                                             legend=False)
+    <<savefig(figname="./img/SHIFT_CONM2s22.png")>>
+#+end_src
+
+#+RESULTS: SHIFT_CONM2s22
+[[file:./img/SHIFT_CONM2s22.png]]
+
+
+
+* COMMENT Beam area shifting
+** Col left :BMCOL:
+:PROPERTIES:
+   :BEAMER_col: 0.45
+   :END:
+
+- topic
+    - subtopic
+    - sub
+- topic
+  
+** Col right :BMCOL:
+:PROPERTIES:
+:BEAMER_col: 0.45
+:END:
+
+#+NAME: modify_pbeamsLM30
+  #+begin_src python :session py1 :results raw :exports results
+    df_ = results_df['modify_pbeamsLM30']
+    tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
+  #+end_src
+
+#+ATTR_LATEX: :width 0.7\textwidth :environment longtable :caption
+  #+RESULTS: modify_pbeamsLM30
+  [[file:./img/modify_pbeamsLM30.png]]
+* COMMENT Beam area shifting
+** Col left :BMCOL:
+:PROPERTIES:
+   :BEAMER_col: 0.45
+   :END:
+
+- topic
+    - subtopic
+    - sub
+- topic
+
+** Col right :BMCOL:
+:PROPERTIES:
+:BEAMER_col: 0.45
+:END:
+
+#+NAME: modify_pbeamsLM30
+#+header: :noweb strip-export
+#+begin_src python :session py1 :results value file :exports results
+  results["modify_pbeamsLM30_0"]['sol145'].obj.plot_vg_vf(modes=range(1, 15))
+  <<savefig(figname="./img/modify_pbeamsLM30.png")>>
+#+end_src
+
+
+#+NAME: modify_pbeamsLM30_2
+#+header: :noweb strip-export
+#+begin_src python :session py1 :results value file :exports results
+    results["shift_panelsLM30_0.0"]['sol145'].obj.plot_vg_vf(modes=range(1, 15),
+                                                             ylim_damping=[-0.15, 0.03],
+                                                             ylim_freq=[0.75, 5],
+                                                             legend=False)
+    <<savefig(figname="./img/modify_pbeamsLM30_2.png")>>
+#+end_src
+
+#+RESULTS: modify_pbeamsLM30_2
+[[file:./img/modify_pbeamsLM30_2.png]]
+
+
+
+
+* Conclusions
+- Flutter
+- An optimizer might be set
+* COMMENT Calculator :noexport:
+
+#+BEGIN_SRC calc
+fsolve([x + y = a, x - y = b],[x,y])
+#+END_SRC
+
+#+RESULTS:
+: [x = a + (b - a) / 2, y = (a - b) / 2]
+
+#+BEGIN_SRC calc :var x=5 :var y=2
+2+a*x**y
+#+END_SRC
+
+#+RESULTS:
+: 25 a + 2
+
+#+HEADERS: :includes <math.h> :flags -lm 
+#+HEADERS: :var x=1.0 :var y=4.0 :var z=10.0
+#+BEGIN_SRC C 
+  double pi = 4*atan(1);
+  double r, theta, phi;
+  r = sqrt(x*x+y*y+z*z);
+  theta = acos(z/r);
+  phi = atan2(y,x);
+  printf("%f %f %f", r, theta, phi);
+#+END_SRC
+
+#+RESULTS:
+: 10.816654 0.391074 1.325818
+
+#+RESULTS: blockA
+: I am blockA
+
+#+NAME: a-name 
+#+BEGIN_SRC python :var name=(org-element-property :name (org-element-context)) :results output
+  print(name)
+#+END_SRC
+
+#+RESULTS: a-name
+: a-name
+
+#+begin_src python :session py1 :results value file  :exports results :var name=(org-element-property :name (org-element-context))
+  fig1 = f"./img/{name}.png"
+  results["shift_panelsLM30_0.0"]['sol145'].obj.plot_vg_vf(modes=range(1, 15),
+                                                           ylim_damping=[-0.15, 0.03],
+                                                           ylim_freq=[0.75, 5],
+                                                           legend=False)
+  <<savefig(figname=fig1)>>
+  #+end_src
