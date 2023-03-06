@@ -1,0 +1,2 @@
+- Folder to store the models and the output of simulations
+- Sensitive as well as large data: not to be pushed the repo
