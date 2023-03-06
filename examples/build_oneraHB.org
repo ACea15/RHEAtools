@@ -2,7 +2,9 @@
 * House keeping
 #+begin_src elisp :results none
   (setq org-confirm-babel-evaluate nil)
-  (require 'org-tempo)  
+  (require 'org-tempo)
+  (setq dir2tangle (concat default-directory "../data/out/ONERA/MeshDeformation/"))
+  (setq program_dir0 (concat default-directory "../"))
 #+end_src
 
 * HB workflow
@@ -323,7 +325,7 @@
 * Mesh deformation workflow
 
 ** file for HPC submission
-#+begin_src org :tangle ~/programs/RHEAtools/data/out/ONERA/MeshDeformation/run.pbs :mkdirp yes
+#+begin_src org :tangle (print (concat dir2tangle "/run.pbs")) :mkdirp yes
   #!/bin/sh
   #PBS -l walltime=07:59:00
   #PBS -l select=1:ncpus=1:mem=200gb
@@ -347,7 +349,7 @@
 #+end_src
 
 ** Config file for SU2 deformation
-#+begin_src org :tangle ~/programs/RHEAtools/data/out/ONERA/MeshDeformation/deformation.cfg :mkdirp yes
+#+begin_src org :tangle (print (concat dir2tangle "/deformation.cfg")) :mkdirp yes
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   %                                                                              %
   % SU2 configuration file                                                       %
@@ -423,7 +425,7 @@
   % ------------------------- INPUT/OUTPUT INFORMATION --------------------------%
   %
   % Mesh input file
-  MESH_FILENAME= ../0901_inv.su2
+  MESH_FILENAME= ../../0901_inv.su2
   MESH_FORMAT= SU2
   TABULAR_FORMAT= CSV
   SCREEN_OUTPUT= (INNER_ITER, WALL_TIME, CAUCHY_DRAG, RMS_DENSITY, AERO_COEFF)
@@ -553,11 +555,9 @@
 #+end_src
 
 ** Copy deformed modal shapes files to HPC and run deformation
-#+begin_src shell :tangle ~/programs/RHEAtools/data/out/ONERA/MeshDeformation/hpc.sh :mkdirp yes
-  #!/usr/bin/zsh
+#+begin_src shell :tangle (print (concat dir2tangle "/hpc.sh")) :mkdirp yes :shebang   #!/usr/bin/zsh :var DIR1=(print program_dir0)
   NUM_MODES=4
-  DIR1=$HOME/programs/RHEAtools
-  for i in {0..$NUM_MODES}
+  for i in {0..$NUM_MODES..1}
     do
         echo "Copying Interpolated Mode $i"
         sshpass -f $DIR1/examples/pas ssh ac5015@login.hpc.imperial.ac.uk << EOF
