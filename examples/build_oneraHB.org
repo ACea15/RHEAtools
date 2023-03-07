@@ -8,42 +8,79 @@
   (setq program_dir0 (concat default-directory "../"))
 #+end_src
 
+* INPUT PARAMETERS
+#+NAME: python_parameters
+#+begin_src python :session py1 :var output="WING_SPAN"
+  import numpy as np
+
+  NUM_MODES = 10
+  SCALING = 30.
+  MACH_NUMBER = 0.735
+  FREESTREAM_TEMPERATURE= 222.773
+  FREESTREAM_PRESSURE= 26201.65
+  R = 287.058
+  gamma = 1.4  
+  FREESTREAM_VELOCITY= MACH_NUMBER * (FREESTREAM_TEMPERATURE * gamma * R) ** 0.5
+  FREESTREAM_DENSITY = FREESTREAM_PRESSURE / (FREESTREAM_TEMPERATURE * R)
+
+  ROOT_WING_CHORD = 3.
+  TIP_WING_CHORD= 0.7
+  WING_SPAN= 28.
+  b = ROOT_WING_CHORD/2
+
+  # (1/3) * π * h * (r² + r * R + R²)
+  WING_VOL_TRUN_CONE= 1./3 * np.pi * (WING_SPAN) * ((TIP_WING_CHORD * 0.5)**2 +
+      TIP_WING_CHORD * 0.5 * ROOT_WING_CHORD *0.5 + (ROOT_WING_CHORD * 0.5)**2)
+
+  WING_VOL_TRUN_CONE = 1.1
+  rho_mat = 400.
+  Omega = 100.
+  # m
+  SCALE_PARAM = 1. / (WING_VOL_TRUN_CONE * rho_mat)
+
+  # mu
+  AIRFOIL_MASS_RATIO = (WING_VOL_TRUN_CONE * rho_mat) / (np.pi *
+                        FREESTREAM_DENSITY * (ROOT_WING_CHORD / 2)**2)
+
+  # FLUTTER_SPEED_INDEX = U/(mu**0.5 * b * omega0)
+  # %% (TgammaR) = ((vf*vf)*(b*b)*(w_alpha*w_alpha)*mu) / (Mach*Mach)
+  FLUTTER_SPEED_INDEX = MACH_NUMBER * ((FREESTREAM_TEMPERATURE * gamma * R) ** 0.5 /
+                         ((b * Omega) * AIRFOIL_MASS_RATIO**0.5))
+  eval(output)
+#+end_src
+
+#+RESULTS: python_parameters
+: 28.0
+
+#+begin_src elisp  :noweb yes
+  (setq NUM_MODES (number-to-string <<python_parameters(output="NUM_MODES")>>))
+  (setq SCALING (number-to-string <<python_parameters(output="SCALING")>>))
+#+end_src
+
+#+RESULTS:
+: 30.0
 
 * Modal shapes workflow
-#+begin_src bash :dir (print program_dir0) :results output :var dir1=(print program_dir0)
+#+NAME: ModalShapes
+#+begin_src bash :dir (print program_dir0) :results output :var dir1=(print program_dir0) NUM_MODES1=(print NUM_MODES) SCALING1=(print SCALING)
   echo $dir1
-  conda init bash
   PYTHONPATH=$PYTHONPATH:$dir1
-  #conda activate nastran
-  python examples/write_cam_modes.py -m 8 -s 25
+  python examples/write_cam_modes.py -m $NUM_MODES1 -s $SCALING1
 #+end_src
 
 #+RESULTS:
 #+begin_example
-/home/ac5015/programs/RHEAtools/examples/../
-no change     /home/ac5015/anaconda3/condabin/conda
-no change     /home/ac5015/anaconda3/bin/conda
-no change     /home/ac5015/anaconda3/bin/conda-env
-no change     /home/ac5015/anaconda3/bin/activate
-no change     /home/ac5015/anaconda3/bin/deactivate
-no change     /home/ac5015/anaconda3/etc/profile.d/conda.sh
-no change     /home/ac5015/anaconda3/etc/fish/conf.d/conda.fish
-no change     /home/ac5015/anaconda3/shell/condabin/Conda.psm1
-no change     /home/ac5015/anaconda3/shell/condabin/conda-hook.ps1
-no change     /home/ac5015/anaconda3/lib/python3.9/site-packages/xontrib/conda.xsh
-no change     /home/ac5015/anaconda3/etc/profile.d/conda.csh
-no change     /home/ac5015/.bashrc
-No action taken.
-Modes scaling: 25.0
-Modes : [0, 1, 2, 3, 4, 5, 6, 7]
+/mnt/work/Programs/RHEAtools/examples/../
+Modes scaling: 30.0
+Modes : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 DEBUG:   bdf.py:1001                  ---starting BDF.read_bdf of ./data/in/SOL103/polimi-103cam.bdf---
-DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOL103/polimi-103cam.bdf'
-DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOL103/stick_wing.bdf'
-DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOL103/stick_fus.bdf'
-DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOL103/stick_vtail.bdf'
-DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOL103/stick_htail.bdf'
-DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOL103/stick_strut_corrected.bdf'
-DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOL103/mass_wing.bdf'
+DEBUG:   pybdf.py:558                 opening '/mnt/work/Programs/RHEAtools/data/in/SOL103/polimi-103cam.bdf'
+DEBUG:   pybdf.py:558                 opening '/mnt/work/Programs/RHEAtools/data/in/SOL103/stick_wing.bdf'
+DEBUG:   pybdf.py:558                 opening '/mnt/work/Programs/RHEAtools/data/in/SOL103/stick_fus.bdf'
+DEBUG:   pybdf.py:558                 opening '/mnt/work/Programs/RHEAtools/data/in/SOL103/stick_vtail.bdf'
+DEBUG:   pybdf.py:558                 opening '/mnt/work/Programs/RHEAtools/data/in/SOL103/stick_htail.bdf'
+DEBUG:   pybdf.py:558                 opening '/mnt/work/Programs/RHEAtools/data/in/SOL103/stick_strut_corrected.bdf'
+DEBUG:   pybdf.py:558                 opening '/mnt/work/Programs/RHEAtools/data/in/SOL103/mass_wing.bdf'
 DEBUG:   cross_reference.py:151       Cross Referencing...
 DEBUG:   bdf.py:1049                  ---finished BDF.read_bdf of ./data/in/SOL103/polimi-103cam.bdf---
 ---BDF Statistics---
@@ -356,24 +393,24 @@ times = [  1.   2.   3.   4.   5.   6.   7.   8.   9.  10.  11.  12.  13.  14.
 #+end_src
 
 ** Copy deformed modal shapes files to HPC and run deformation
-#+begin_src shell :tangle (print (concat dir2tangle "/hpc.sh")) :mkdirp yes :shebang   #!/usr/bin/zsh :var DIR1=(print program_dir0)
+#+begin_src shell :tangle (print (concat dir2tangle "/hpc.sh")) :mkdirp yes :shebang   #!/usr/bin/zsh :var DIR1=(print program_dir0) DIR2=(print (concat "ONERA_fac" SCALING))
   NUM_MODES=4
   for i in {0..$NUM_MODES..1}
     do
         echo "Copying Interpolated Mode $i"
         sshpass -f $DIR1/examples/pas ssh ac5015@login.hpc.imperial.ac.uk << EOF
         cd $HOME/runs
-        mkdir -p "ONERA_fac10/MeshDeformation/M$i"
+        mkdir -p "$DIR2/MeshDeformation/M$i"
     exit
   EOF
-        sshpass -f $DIR1/examples/pas scp $DIR1/data/out/ONERA/MeshDeformation/SU2_mesh/M$i/sbw_fordef.dat ac5015@login.hpc.imperial.ac.uk:$HOME/runs/ONERA_fac10/MeshDeformation/M$i/sbw_fordef.dat
+        sshpass -f $DIR1/examples/pas scp $DIR1/data/out/ONERA/MeshDeformation/SU2_mesh/M$i/sbw_fordef.dat ac5015@login.hpc.imperial.ac.uk:$HOME/runs/$DIR2/MeshDeformation/M$i/sbw_fordef.dat
 
         echo "Submitting Mode $i"
-        sshpass -f $DIR1/examples/pas scp $DIR1/data/out/ONERA/MeshDeformation/run.pbs ac5015@login.hpc.imperial.ac.uk:$HOME/runs/ONERA_fac10/MeshDeformation/M$i/run.pbs
-        sshpass -f $DIR1/examples/pas scp $DIR1/data/out/ONERA/MeshDeformation/deformation.cfg ac5015@login.hpc.imperial.ac.uk:$HOME/runs/ONERA_fac10/MeshDeformation/M$i/deformation.cfg
+        sshpass -f $DIR1/examples/pas scp $DIR1/data/out/ONERA/MeshDeformation/run.pbs ac5015@login.hpc.imperial.ac.uk:$HOME/runs/$DIR2/MeshDeformation/M$i/run.pbs
+        sshpass -f $DIR1/examples/pas scp $DIR1/data/out/ONERA/MeshDeformation/deformation.cfg ac5015@login.hpc.imperial.ac.uk:$HOME/runs/$DIR2/MeshDeformation/M$i/deformation.cfg
 
         sshpass -f $DIR1/examples/pas ssh ac5015@login.hpc.imperial.ac.uk << EOF
-        cd $HOME/runs/ONERA_fac10/MeshDeformation/M$i/
+        cd $HOME/runs/$DIR2/MeshDeformation/M$i/
         qsub run.pbs
     exit
   EOF
@@ -382,13 +419,13 @@ times = [  1.   2.   3.   4.   5.   6.   7.   8.   9.  10.  11.  12.  13.  14.
 
 #+end_src
 ** Retrieve paraview surface
-#+begin_src shell :tangle (print (concat dir2tangle "/retrieve_deformedmesh.sh")) :mkdirp yes :shebang   #!/usr/bin/zsh :var DIR1=(print program_dir0)
+#+begin_src shell :tangle (print (concat dir2tangle "/retrieve_deformedmesh.sh")) :mkdirp yes :shebang   #!/usr/bin/zsh :var DIR1=(print program_dir0) DIR2=(print (concat "ONERA_fac" SCALING))
   NUM_MODES=4
   for i in {0..$NUM_MODES..1}
     do
 
         echo "Copying surface_deformed.vtu from Mode $i"
-        sshpass -f $DIR1/examples/pas scp ac5015@login.hpc.imperial.ac.uk:$HOME/runs/ONERA_fac10/MeshDeformation/M$i/surface_deformed.vtu $DIR1/data/out/ONERA/MeshDeformation/SU2_mesh/M$i/surface_deformed.vtu 
+        sshpass -f $DIR1/examples/pas scp ac5015@login.hpc.imperial.ac.uk:$HOME/runs/$DIR2/MeshDeformation/M$i/surface_deformed.vtu $DIR1/data/out/ONERA/MeshDeformation/SU2_mesh/M$i/surface_deformed.vtu 
 
   done
 
@@ -560,7 +597,7 @@ CONV_FIELD= (DRAG, LIFT)
 #+end_src
 
 ** Copy files to HPC and run steady
-#+begin_src shell :tangle (print (concat dir2tangle_steady "/hpc.sh")) :mkdirp yes :shebang   #!/usr/bin/zsh :var DIR1=(print program_dir0)
+#+begin_src shell :tangle (print (concat dir2tangle_steady "/hpc.sh")) :mkdirp yes :shebang   #!/usr/bin/zsh :var DIR1=(print program_dir0) DIR2=(print (concat "ONERA_fac" SCALING))
   NUM_MODES=4
   for i in {0..$NUM_MODES..1}
     do
@@ -569,18 +606,18 @@ CONV_FIELD= (DRAG, LIFT)
         sed "s/+__+/$i/" $DIR1/data/out/ONERA/SteadyModes/euler-onera0.cfg > $DIR1/data/out/ONERA/SteadyModes/M$i/euler_onera.cfg  
         sshpass -f $DIR1/examples/pas ssh ac5015@login.hpc.imperial.ac.uk << EOF
         cd $HOME/runs
-        mkdir -p "ONERA_fac10/SteadyModes/M$i"
+        mkdir -p "$DIR2/SteadyModes/M$i"
     exit
   EOF
         echo "Copying .cfg"
         ls $DIR1/data/out/ONERA/SteadyModes/M$i/
-        sshpass -f $DIR1/examples/pas scp $DIR1/data/out/ONERA/SteadyModes/M$i/euler_onera.cfg ac5015@login.hpc.imperial.ac.uk:$HOME/runs/ONERA_fac10/SteadyModes/M$i/euler_onera.cfg
+        sshpass -f $DIR1/examples/pas scp $DIR1/data/out/ONERA/SteadyModes/M$i/euler_onera.cfg ac5015@login.hpc.imperial.ac.uk:$HOME/runs/$DIR2/SteadyModes/M$i/euler_onera.cfg
 
         echo "Copying run.pbs"
-        sshpass -f $DIR1/examples/pas scp $DIR1/data/out/ONERA/SteadyModes/run.pbs ac5015@login.hpc.imperial.ac.uk:$HOME/runs/ONERA_fac10/SteadyModes/M$i/run.pbs
+        sshpass -f $DIR1/examples/pas scp $DIR1/data/out/ONERA/SteadyModes/run.pbs ac5015@login.hpc.imperial.ac.uk:$HOME/runs/$DIR2/SteadyModes/M$i/run.pbs
 
         sshpass -f $DIR1/examples/pas ssh ac5015@login.hpc.imperial.ac.uk << EOF
-        cd $HOME/runs/ONERA_fac10/SteadyModes/M$i/
+        cd $HOME/runs/$DIR2/SteadyModes/M$i/
         qsub run.pbs
     exit
   EOF
@@ -589,82 +626,6 @@ CONV_FIELD= (DRAG, LIFT)
 
 #+end_src
 * HB workflow
-** Calculate inflow settings
-#+NAME: python_parameters
-#+begin_src python :session py1 :var output="WING_SPAN"
-  import numpy as np
-
-  MACH_NUMBER = 0.735
-  FREESTREAM_TEMPERATURE= 222.773
-  FREESTREAM_PRESSURE= 26201.65
-  R = 287.058
-  gamma = 1.4  
-  FREESTREAM_VELOCITY= MACH_NUMBER * (FREESTREAM_TEMPERATURE * gamma * R) ** 0.5
-  FREESTREAM_DENSITY = FREESTREAM_PRESSURE / (FREESTREAM_TEMPERATURE * R)
-
-  ROOT_WING_CHORD = 3.
-  TIP_WING_CHORD= 0.7
-  WING_SPAN= 28.
-  b = ROOT_WING_CHORD/2
-
-  # (1/3) * π * h * (r² + r * R + R²)
-  WING_VOL_TRUN_CONE= 1./3 * np.pi * (WING_SPAN) * ((TIP_WING_CHORD * 0.5)**2 +
-      TIP_WING_CHORD * 0.5 * ROOT_WING_CHORD *0.5 + (ROOT_WING_CHORD * 0.5)**2)
-
-  WING_VOL_TRUN_CONE = 1.1
-  rho_mat = 400.
-  Omega = 100.
-  # m
-  SCALE_PARAM = 1. / (WING_VOL_TRUN_CONE * rho_mat)
-
-  # mu
-  AIRFOIL_MASS_RATIO = (WING_VOL_TRUN_CONE * rho_mat) / (np.pi *
-                        FREESTREAM_DENSITY * (ROOT_WING_CHORD / 2)**2)
-
-  # FLUTTER_SPEED_INDEX = U/(mu**0.5 * b * omega0)
-  # %% (TgammaR) = ((vf*vf)*(b*b)*(w_alpha*w_alpha)*mu) / (Mach*Mach)
-  FLUTTER_SPEED_INDEX = MACH_NUMBER * ((FREESTREAM_TEMPERATURE * gamma * R) ** 0.5 /
-                         ((b * Omega) * AIRFOIL_MASS_RATIO**0.5))
-  eval(output)
-  # AOA= 0.0
-  # FREESTREAM_TEMPERATURE= 222.7730
-  # FREESTREAM_PRESSURE= 26201.6
-  # %% P = rho * R * T => rho = 26201.6 / (287.058 * 222.7730) = 0.4097
-  # FREESTREAM_DENSITY= 0.4097
-  # %
-  # MACH_NUMBER= 0.735
-  # SIDESLIP_ANGLE= 0.0
-  # %
-  # %%%%%n
-  # MACH_MOTION= 0.735
-  # %
-  # % Moving wall boundary marker(s) (NONE = no marker, ignored for RIGID_MOTION)
-  # MARKER_MOVING= (wing, strut)
-  # %
-  # ROOT_WING_CHORD= 3.
-  # TIP_WING_CHORD= 0.7
-  # WING_SPAN= 28.
-  # WING_VOL_TRUN_CONE= 1.1
-  # %
-  # %% conversion to kg (for scaling of forces)
-  # %% invert of mass of the wing panel (m=117.1125)
-  # %% = 1/m with m = volume_cone * rho_mat - 1/(400*1.1)
-  # SCALE_PARAM= 0.00227
-  # %
-  # % The flutter speed index (modifies the freestream condition in the solver)
-  # %% U/(omega0*c/2*mu)
-  # %% 170/(50*1.5*155.6) //
-  # %% (TgammaR) = ((vf*vf)*(b*b)*(w_alpha*w_alpha)*mu) / (Mach*Mach)
-  # %% 222.7730 * 1.4 * 287.058 = vf^2 * 1.5^2 * 100^2 * 155.6 / 0.735^2 =>
-  # %% vf = 0.1175 //0.352608
-  # FLUTTER_SPEED_INDEX = 0.1175
-  # %
-  # % The airfoil mass ratio
-  # % The airfoil mass ratio = mu = m / (pi * rho * (c/2)**2)
-  # % 400*1.1/(pi*0.4*1.5**2)
-  # AIRFOIL_MASS_RATIO = 155.6
-#+end_src
-
 ** Input SU2 config file
 :PROPERTIES:
 :header-args: :tangle ./SU2runs/HBOnera/su2.cfg :mkdirp yes
