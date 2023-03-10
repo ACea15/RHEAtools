@@ -5,11 +5,21 @@ from pyNastran.op2.op2 import OP2
 import src.nastran_extraction as nastran_ex
 import src.write_modes
 import argparse
+import src.filters
+
+def filter_sigmoid(x):
+    a = 1.
+    b = 5.
+    c = 2.2#1.85 # 2.
+    return src.filters.filter_sigmoid(x, a, b, c)
 
 ###
 parser = argparse.ArgumentParser()
-parser.add_argument("-m","--num_modes",nargs='?', const=4, type=int)
-parser.add_argument("-s","--scaling",nargs='?', const=1., type=float)
+parser.add_argument("-m","--num_modes", nargs='?', const=4, type=int)
+parser.add_argument("-s","--scaling", nargs='?', const=1., type=float)
+parser.add_argument("-f","--filtering", nargs='?', const=None, type=str)
+parser.add_argument("-d","--dir2save", nargs='?', const=None, type=str)
+
 args = parser.parse_args()
 
 if args.scaling is None:
@@ -22,8 +32,20 @@ if args.num_modes is None:
 else:
     NUM_MODES = list(range(args.num_modes))
 
+if args.filtering is None:
+    FILTERING = None
+else:
+    FILTERING = locals()[args.filtering]
+    
+if args.dir2save is None:
+    SAVE_DIR0 = f"./data/out/ONERA_fac{MODES_SCALING}/MeshDeformation/"
+else:
+    SAVE_DIR0 = f"./data/out/ONERA_fac{MODES_SCALING}/{args.dir2save}/"
+
 print("Modes scaling: %s" %MODES_SCALING)
 print("Modes : %s" %NUM_MODES)
+print("Filtering : %s" %args.filtering)
+print("Directory : %s" %args.dir2save)
 
 ##################################################
 model = BDF()
@@ -83,7 +105,6 @@ components = dict(wing=dict(rbe2_ids=rbe2_wing,
                   )
 
 
-SAVE_DIR0 = "./data/out/ONERA/MeshDeformation/"
 ####################################################
 
 m2 = nastran_ex.Model(model, components= components, modes=modes,
@@ -131,16 +152,24 @@ df_combined = pd.concat([df_wing.set_index('id'),
 Xwing = df_wing[['x', 'y', 'z']].to_numpy()
 Xstrut = df_strut[['x', 'y', 'z']].to_numpy()
 
+# modal_displacements, modal_coord = src.write_modes.calculate_interpolated_modes(Xv, Xm,
+#                                                                                 df_combined.to_numpy(),
+#                                                                                 df_combined.index.to_numpy())
 modal_displacements, modal_coord = src.write_modes.calculate_interpolated_modes(Xv, Xm,
                                                                                 df_combined.to_numpy(),
-                                                                                df_combined.index.to_numpy())
+                                                                                df_combined.index.to_numpy(),
+                                                                                filtering=FILTERING)
 
 src.write_modes.save_interpolated_modes(modal_coord,
                                         folder_name=SAVE_DIR0 + "/SU2_mesh/M",
                                         file_name="sbw_fordef.dat")
 #########################################################
-displacements_wing, coord_wing = src.write_modes.calculate_interpolated_modes(Xv, Xm, Xwing)
-displacements_strut, coord_strut = src.write_modes.calculate_interpolated_modes(Xv, Xm, Xstrut)
+# displacements_wing, coord_wing = src.write_modes.calculate_interpolated_modes(Xv, Xm, Xwing)
+# displacements_strut, coord_strut = src.write_modes.calculate_interpolated_modes(Xv, Xm, Xstrut)
+displacements_wing, coord_wing = src.write_modes.calculate_interpolated_modes(Xv, Xm, Xwing,
+                                                                              filtering=FILTERING)
+displacements_strut, coord_strut = src.write_modes.calculate_interpolated_modes(Xv, Xm, Xstrut,
+                                                                                filtering=FILTERING)
 
 src.write_modes.save_interpolated_modes_parts(SAVE_DIR0 + "/SU2_mesh/",
                                               "sbw_forHB.dat",

@@ -47,7 +47,7 @@ def rbef_3Dinterpolators(vertices, displacement,
     return interpolator_rbfX, interpolator_rbfY, interpolator_rbfZ
 
 #######################
-def calculate_interpolated_modes(Xv, Xm, X, ids=None, **kwargs):
+def calculate_interpolated_modes(Xv, Xm, X, ids=None, filtering: callable=None, **kwargs):
 
     num_modes = len(Xm)
     interpolated_modal_displacements = []
@@ -62,9 +62,13 @@ def calculate_interpolated_modes(Xv, Xm, X, ids=None, **kwargs):
         Ux = interpolator_rbfX(X)
         Uy = interpolator_rbfY(X)
         Uz = interpolator_rbfZ(X)
-        Rx = interpolator_rbfX(X) + X0
-        Ry = interpolator_rbfY(X) + X1
-        Rz = interpolator_rbfZ(X) + X2
+        if filtering is not None:
+            Ux = filtering(Ux)
+            Uy = filtering(Uy)
+            Uz = filtering(Uz)
+        Rx = Ux + X0
+        Ry = Uy + X1
+        Rz = Uz + X2
 
         if ids is not None:
             interpolated_modal_displacements.append(np.array([ids, Ux, Uy, Uz]).T)
