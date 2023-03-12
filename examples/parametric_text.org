@@ -40,7 +40,7 @@
 #+end_src
 * Load modules :noexport:
 #+begin_src python :session py1 :results none
-  import parametric_analysis
+  import src.parametric_analysis
   import plotly.express as px
   import pandas as pd
   import matplotlib.pyplot as plt

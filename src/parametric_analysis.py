@@ -1,4 +1,5 @@
 import numpy as np
+import json
 from pyNastran.bdf.bdf import BDF
 from pyNastran.op2.op2 import OP2
 from pyNastran.f06 import parse_flutter as flut
@@ -6,6 +7,8 @@ import pathlib
 import subprocess
 from pyNastran.f06 import parse_flutter as flutter
 import matplotlib.pyplot as plt
+import pandas as pd
+
 def shift_panels(model, caero_shift:dict):
 
     for k, v in caero_shift.items():
@@ -24,9 +27,9 @@ def modify_pbeams(model, pbeam_ids, Afactor):
 
 def write_model(fileX, model, write_directly=False):
     if write_directly:
-        model.write_bdf(f"{fileX}.bdf")
+        model.write_bdf(f"{fileX}")
     else:
-        with open(f"{fileX}.bdf", "w") as file1:
+        with open(f"{fileX}", "w") as file1:
             executive_control = "$ EXECUTIVE CONTROL $"
             file1.write(executive_control)
             file1.write('\n')
@@ -44,23 +47,30 @@ def write_model(fileX, model, write_directly=False):
             file1.write('\n')
             model.write_bulk_data(file1)
 
-def run_nastran(fileX, file_path):
-    result = subprocess.call([f"/msc/MSC_Nastran/2022.4/bin/nast20224 {fileX}.bdf batch=no"],
+def run_nastran(fileX, file_path=None):
+    if file_path is None or type(fileX).__name__ == 'PosixPath':
+        file_path = str(fileX.parent)
+        file_name = fileX.name
+    else:
+        file_name = fileX
+    result = subprocess.call([f"/msc/MSC_Nastran/2022.4/bin/nast20224 {file_name} batch=no"],
                              shell=True, executable='/bin/bash',cwd=file_path)
     # result = subprocess.run([f"/msc/MSC_Nastran/2022.4/bin/nast20224 {fileX}.bdf scr=yes old=no"],
     #                          shell=True, executable='/bin/bash',cwd=file_path)
     return result
 
-def validate_interface(original_file, fileX):
-
-    f0 = flutter.make_flutter_response(f"{original_file}.f06",
+def validate_interface(original_file, new_file):
+    
+    original_model = original_file.parent / original_file.stem
+    new_model = new_file.parent / new_file.stem
+    f0 = flutter.make_flutter_response(f"{original_model}.f06",
                                        {'eas':'m/s', 'velocity':'m/s', 'density':'kg/m^3', 'altitude':'m',
                                         'dynamic_pressure':'Pa'},
                                        {'eas':'m/s', 'velocity':'m/s', 'density':'kg/m^3', 'altitude':'m',
                                         'dynamic_pressure':'Pa'},
                                        )
 
-    f1 = flutter.make_flutter_response(f"{fileX}.f06",
+    f1 = flutter.make_flutter_response(f"{new_model}.f06",
                                        {'eas':'m/s', 'velocity':'m/s', 'density':'kg/m^3', 'altitude':'m',
                                         'dynamic_pressure':'Pa'},
                                        {'eas':'m/s', 'velocity':'m/s', 'density':'kg/m^3', 'altitude':'m',
@@ -76,6 +86,8 @@ def validate_interface(original_file, fileX):
     damping = f1[1].results[:, :, f1[1].idamping]
     damping_original = f0[1].results[:, :, f0[1].idamping]
     assert np.allclose(damping, damping_original, 5e-2), "damping not matching"
+
+    print("validation successful!!")
 
     # dict1 = dict(velocity=obj1.results[mi, :, obj1.ivelocity],
     #             eas=obj1.results[mi, :, obj1.ieas],
@@ -101,28 +113,30 @@ def stretch_strutchord(model, a_factor, pbeam_ids, caero_ids, **kwags):
     # for k, v in conm2_symm.items():
     #     model.masses[conm2_ids[k]].X += np.array([chord * shift_chord[k], 0., 0.])
     #     model.masses[conm2_ids[v]].X += np.array([chord * shift_chord[k], 0., 0.])
-
-
-        
-def parametric_factory(_range: list, parametric_function: callable,
-                       original_file: str, folder_out, file_out, **kwargs):
-
-    for si in _range:
+    
+def parametric_factory(_range: list[dict], parametric_function: callable,
+                       original_file: str, folder_out: pathlib.Path, file_out, *args, **kwargs):
+    
+    folder_parametricpath = folder_out.parent / (folder_out.name + "_cases")
+    folder_parametricpath.mkdir(parents=True, exist_ok=True)
+    for i, si in enumerate(_range):
+        with open(f'{folder_parametricpath}/_{i}.json', 'wb') as handle:
+            json.dump(si, handle)
         model = BDF()
-        model.read_bdf(original_file + ".bdf")
-        parametric_function(model, **kwargs)
-        file_path = pathlib.Path(f"{folder_out}_{si}")
-        file_path.mkdir(parents=True, exist_ok=True)
-        fileX = file_path / file_out
+        model.read_bdf(original_file)
+        parametric_function(model, *args, **(si|kwargs))
+        folder_path = folder_out.parent / (folder_out.name + f"_{i}")
+        folder_path.mkdir(parents=True, exist_ok=True)
+        fileX = folder_path / file_out
         write_model(fileX, model)
-        run_nastran(fileX, file_path)
+        run_nastran(fileX)
     
 def build_strut_shifting(shift_range, strut_panels, original_file_name,
                          file_name= "sol145", folder="/home/acea/runs/polimi/models/shift_panelsLM25"):
 
     for si in shift_range:
         model = BDF()
-        model.read_bdf(original_file_name + ".bdf")
+        model.read_bdf(original_file_name)
         shift_strut_dict = {k: si for k in strut_panels}
         shift_panels(model, shift_strut_dict)
         file_path = pathlib.Path(f"{folder}_{si}")
@@ -136,7 +150,7 @@ def build_strut_conm2shifting(chord, shift_chord, conm2_ids, conm2_symm, origina
 
     for i, si in enumerate(shift_chord):
         model = BDF()
-        model.read_bdf(original_file_name + ".bdf")
+        model.read_bdf(original_file_name)
         shift_conm2s(model, chord, si, conm2_ids, conm2_symm)
         file_path = pathlib.Path(f"{folder}_{i}")
         file_path.mkdir(parents=True, exist_ok=True)
@@ -152,7 +166,7 @@ def build_strut_pbeams(Afactors, pbeam_ids, original_file_name,
     
     for i, ai in enumerate(Afactors):
         model = BDF()
-        model.read_bdf(original_file_name + ".bdf")
+        model.read_bdf(original_file_name)
         modify_pbeams(model, pbeam_ids, ai)
         file_path = pathlib.Path(f"{folder}_{i}")
         file_path.mkdir(parents=True, exist_ok=True)
@@ -248,7 +262,7 @@ def calculate_flutter(fileX, Modes=None, collector=None):
     else:
         return FlutterSpeed, FlutterMode
 
-def build_flutter(main_folder, folders, file_name="sol145",  Modes=None, collector=None):
+def build_flutter(main_folder, files, file_name="sol145",  Modes=None, collector=None):
 
     results = dict()
     for fi in files:
@@ -263,6 +277,83 @@ def build_flutter(main_folder, folders, file_name="sol145",  Modes=None, collect
             calculate_flutter(fileX, Modes, collector_i)
             results[fi] = collector_i
     return results
+
+def build_results_df(files, parametric_var, results):
+
+    #import pdb; pdb.set_trace()
+    results_df = dict()
+    for ki, vi in parametric_var.items():
+        flutter_speed = []
+        flutter_mode = []
+        for fi in files:
+            if ki == fi[:len(ki)]:
+                flutter_speed.append(results[fi]["FlutterSpeed"])
+                flutter_mode.append(results[fi]["FlutterMode"])
+        try:
+            df = pd.DataFrame({'flutter': flutter_speed,
+                               'flutter_mode': flutter_mode,
+                               'xlabel': vi
+                               })
+        except ValueError:
+            import pdb; pdb.set_trace()
+        results_df[ki] = df
+
+    return results_df
+
+###########################################################
+# Running
+###########################################################
+
+VALIDATE = False
+STRUT_SHIFTING_ANALYSIS = False
+CONM2_SHIFTING = False
+PBEAM = False
+RUNNING = True
+CHORD_EXTENSION = True
+import inspect
+__file__ = inspect.getfile(lambda: None)
+file_path = pathlib.Path(__file__)
+repo_path = file_path.parents[1]
+original_file_name  =  repo_path / "data/in/SOL145/polimi-145cam_078M.bdf"
+if RUNNING:
+    #run_nastran(original_file_name)
+    model0 = BDF()
+    model0.read_bdf(original_file_name)
+    strut_panels = [k for k in model0.caeros.keys() if k > 31000 and k < 37000]
+    strut_conm2s = [k for k in model0.masses.keys() if model0.masses[k].eid in list(range(233,328+1))]
+    strut_pbeams = [k for k in model0.properties.keys() if model0.properties[k].Pid() in list(range(5000, 5022+1))] 
+    strut_conm2s_symmetric = {i: i+48 for i in range(2, 48)}
+    strut_conm2s_coord = conm2_coord(model0, strut_conm2s)
+    chord = model0.caeros[strut_panels[-1]].x12
+if VALIDATE:
+    validate_folder = repo_path / "data/out/parametric_analysis/VALIDATE_PANELS"
+    shift_strut_dict = {k: 0. for k in strut_panels}
+    shift_panels(model0, shift_strut_dict)
+    validate_folder.mkdir(parents=True, exist_ok=True)
+    fileX =  validate_folder / "sol_145.bdf"
+    write_model(fileX, model0)
+    run_nastran(fileX)
+    validate_interface(original_file_name, fileX)
+if STRUT_SHIFTING_ANALYSIS:
+    shift_range = [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]
+    build_strut_shifting(shift_range, strut_panels, original_file_name, file_name= "sol145",
+                         folder="/home/acea/runs/polimi/models/shift_panelsLM25")
+if CONM2_SHIFTING:
+    shift_chord = copy_raws([0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25],
+                            strut_conm2s_symmetric)
+    build_strut_conm2shifting(chord, shift_chord, strut_conm2s, strut_conm2s_symmetric,
+                              original_file_name)
+if PBEAM:
+    pbeam_factors = [0.75, 0.9, 1., 1.1, 1.2]
+    build_strut_pbeams(pbeam_factors, strut_pbeams, original_file_name)
+
+if CHORD_EXTENSION:
+    folder_out = repo_path / "data/out/parametric_analysis/CHORD_EXTENSION_M25"
+    file_out = "sol145.bdf"
+    A_FACTOR = [{'a_factor': a} for a in [0.7, 0.85, 1., 1.1, 1.2, 1.3]]
+    parametric_factory(A_FACTOR, stretch_strutchord, original_file_name, folder_out, file_out,
+                       pbeam_ids=strut_pbeams, caero_ids=strut_panels)
+
 
 ###########################################################
 # Plotting
@@ -304,46 +395,7 @@ def build_flutter(main_folder, folders, file_name="sol145",  Modes=None, collect
 # results["shift_panels__0.1"]['sol145'].obj.plot_vg_vf(modes=range(1, 15))
 # plt.show()
 
-###########################################################
-# Running
-###########################################################
-
-original_file_name  =  "/home/acea/runs/polimi/models/SOL145/polimi-145cam_078M"
-validate_folder = "/home/acea/runs/polimi/models/validate_panels_shifting"
-model0 = BDF()
-model0.read_bdf(original_file_name + ".bdf")
-strut_panels = [k for k in model0.caeros.keys() if k > 31000 and k < 37000]
-VALIDATE = False
-STRUT_SHIFTING_ANALYSIS = True
-CONM2_SHIFTING = True
-PBEAM = True
-strut_conm2s = [k for k in model0.masses.keys() if model0.masses[k].eid in list(range(233,328+1))]
-strut_pbeams = [k for k in model0.properties.keys() if model0.properties[k].Pid() in list(range(5000, 5022+1))] 
-strut_conm2s_symmetric = {i: i+48 for i in range(2, 48)}
-strut_conm2s_coord = conm2_coord(model0, strut_conm2s)
-chord = model0.caeros[strut_panels[-1]].x12
-
-if VALIDATE:
-    shift_strut_dict = {k: 0. for k in strut_panels}
-    shift_panels(model0, shift_strut_dict)
-    file_path = pathlib.Path(validate_folder)
-    file_path.mkdir(parents=True, exist_ok=True)
-    fileX = file_path / "sol_145"
-    write_model(fileX, model0)
-    run_nastran(fileX, file_path)
-    validate_interface(original_file_name, fileX)
-if STRUT_SHIFTING_ANALYSIS:
-    shift_range = [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]
-    build_strut_shifting(shift_range, strut_panels, original_file_name, file_name= "sol145",
-                         folder="/home/acea/runs/polimi/models/shift_panelsLM25")
-if CONM2_SHIFTING:
-    shift_chord = copy_raws([0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25],
-                            strut_conm2s_symmetric)
-    build_strut_conm2shifting(chord, shift_chord, strut_conm2s, strut_conm2s_symmetric,
-                              original_file_name)
-if PBEAM:
-    pbeam_factors = [0.75, 0.9, 1., 1.1, 1.2]
-    build_strut_pbeams(pbeam_factors, strut_pbeams, original_file_name)
+    
 #model = BDF()
 #model.read_bdf("./models/nastran/")
 #model.read_bdf(original_file_name + ".bdf")
