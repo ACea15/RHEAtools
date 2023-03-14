@@ -17,22 +17,32 @@ class ReadMesh:
         self.current_group = None
         self.current_reading_lines = []
         
-    def set_line_type(self, line_index):
-        if line_index in self.current_reading_lines:
-            self.line_type = 0
-        else:
+    def set_line_type(self, line):
+        if "=" in line:
             self.line_type = 1
+        else:
+            self.line_type = 0
 
+    def set_group(self, line):
+
+        line = line.replace(" ", "")
+        line0, line1 = line.split("=")
+        
+        
     def save_line(self, line):
         if self.current_group == "NPOIN":
-            pass
+            split_line = [float(li) for li in line.split(" ") if li != '']
         elif self.current_group == "NELEM":
             pass
+        
     def read_file(self):
         with open(self.mesh_file, 'r') as fp:
             for i, line_i in enumerate(fp):
-                self.set_line_type(i)
+                self.set_line_type(line_i)
                 if self.line_type == 0:
-                    self.current_group
+                    self.save_line(line_i.strip())
+                elif self.line_type == 1:
+                    self.set_group(line_i.strip)
+                    
                 
             
