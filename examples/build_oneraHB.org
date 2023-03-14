@@ -2,7 +2,6 @@
 #+begin_src elisp :results none
   (setq org-confirm-babel-evaluate nil)
   (require 'org-tempo)
-  (setq output_label "f1") 
   (setq program_dir0 (concat default-directory "../"))
 #+end_src
 
@@ -12,7 +11,7 @@
   import numpy as np
 
   NUM_MODES = 8
-  SCALING = 20.
+  SCALING = 15.
   MACH_NUMBER = 0.75#0.735
   FREESTREAM_TEMPERATURE= 216.7#222.773
   FREESTREAM_PRESSURE= 19691.2#26201.65
@@ -50,25 +49,41 @@
 #+RESULTS: python_parameters
 : 8
 
-** MUST BE RUN TO SET ENV VARIABLES
-#+begin_src elisp  :noweb yes
+** MUST BE RUN TO SET ENV VARIABLES and file structure
+#+begin_src elisp  :noweb yes :results output
   (setq NUM_MODES (number-to-string <<python_parameters(output="NUM_MODES")>>))
   (setq SCALING (number-to-string <<python_parameters(output="SCALING")>>))
-  (setq mesh_deformation (concat default-directory "../data/out/ONERA_fac" SCALING "/MeshDeformation_" output_label "/"))
-  (setq steady_deformation (concat default-directory "../data/out/ONERA_fac" SCALING "/SteadyModes_" output_label "/"))
-
-  ;; (setq mesh_deformation (concat default-directory "../data/out/ONERA_" SCALING "/MeshDeformation_" output_label "/"))
-  ;; (setq mesh_deformation_steady (concat default-directory "../data/out/ONERA" SCALING "/SteadyModes_" output_label "/"))
-
+  (print (concat "Number of Modes:" NUM_MODES))
+  (print (concat "Scaling:" SCALING))
+  (setq output_label "ft")
+  (setq local_root (concat default-directory ".."))
+  (setq local_dir "/data/out")
+  (setq remote_dir "/runs")
+  (setq onera_dir (concat "/ONERA_fac" SCALING))
+  (setq mesh_deformation_dir (concat onera_dir "/MeshDeformation_" output_label))
+  (setq steady_deformation_dir (concat onera_dir "/SteadyModes_" output_label))
+  (setq mesh_deformation_tangle (concat local_root local_dir mesh_deformation_dir))
+  (setq steady_deformation_tangle (concat local_root local_dir steady_deformation_dir))
+  (print "ENV VARIABLES SET!!")
+  (make-directory mesh_deformation_tangle t)
+  (make-directory steady_deformation_tangle t)
+  (print "Dirs to tangle created")
 #+end_src
 
 #+RESULTS:
-: 20.0
-
+: 
+: "Number of Modes:8"
+: 
+: "Scaling:15.0"
+: 
+: "ENV VARIABLES SET!!"
+: 
+: "Dirs to tangle created"
 
 * Modal shapes workflow
 #+NAME: ModalShapes
-#+begin_src bash :dir (print program_dir0) :shebang #!/usr/bin/zsh :results output :var OUTPUT_DIR=(print mesh_deformation) dir1=(print program_dir0) NUM_MODES1=(print NUM_MODES) SCALING1=(print SCALING) :tangle (print (concat mesh_deformation "/generate_modes.sh")) :async
+#+header: 
+#+begin_src bash :dir (print program_dir0) :shebang #!/usr/bin/zsh :results output :var OUTPUT_DIR=(print mesh_deformation_tangle) dir1=(print local_root) NUM_MODES1=(print NUM_MODES) SCALING1=(print SCALING) :tangle (print (concat mesh_deformation_tangle "/generate_modes.sh")) :async
   echo $dir1
   PYTHONPATH=$PYTHONPATH:$dir1
   python examples/write_cam_modes.py -m $NUM_MODES1 -s $SCALING1 -f filter_sigmoid -d $OUTPUT_DIR
@@ -76,11 +91,11 @@
 
 #+RESULTS: ModalShapes
 #+begin_example
-/home/ac5015/programs/RHEAtools/examples/../
-Modes scaling: 20.0
+/home/ac5015/programs/RHEAtools/examples/..
+Modes scaling: 15.0
 Modes : [0, 1, 2, 3, 4, 5, 6, 7]
-Filtering : filter_sigmoid
-Directory : MeshDeformation_f1
+Filtering : <function filter_sigmoid at 0x7f03bc693eb0>
+Directory : /home/ac5015/programs/RHEAtools/examples/../data/out/ONERA_fac15.0/MeshDeformation_ft
 DEBUG:   bdf.py:1001                  ---starting BDF.read_bdf of ./data/in/SOL103/polimi-103cam.bdf---
 DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOL103/polimi-103cam.bdf'
 DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOL103/stick_wing.bdf'
@@ -168,10 +183,9 @@ times = [  1.   2.   3.   4.   5.   6.   7.   8.   9.  10.  11.  12.  13.  14.
 
 #+end_example
 
-$LOCAL_ROOT/data/out/
 * Mesh deformation workflow
 ** file for HPC submission
-#+begin_src org :tangle (print (concat mesh_deformation "/run.pbs")) :mkdirp yes
+#+begin_src org :tangle (print (concat mesh_deformation_tangle "/run.pbs")) :mkdirp yes
   #!/bin/sh
   #PBS -l walltime=07:59:00
   #PBS -l select=1:ncpus=1:mem=200gb
@@ -192,7 +206,7 @@ $LOCAL_ROOT/data/out/
   ##cp -r ./* $PBS_O_WORKDIR
 #+end_src
 ** Config file for SU2 deformation
-#+begin_src org :tangle (print (concat mesh_deformation "/deformation.cfg")) :mkdirp yes :noweb yes
+#+begin_src org :tangle (print (concat mesh_deformation_tangle "/deformation.cfg")) :mkdirp yes :noweb yes
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   %                                                                              %
   % SU2 configuration file                                                       %
@@ -253,7 +267,8 @@ $LOCAL_ROOT/data/out/
   %
   % Type of element stiffness imposed for FEA mesh deformation (INVERSE_VOLUME,
   %                                           WALL_DISTANCE, CONSTANT_STIFFNESS)
-  DEFORM_STIFFNESS_TYPE= WALL_DISTANCE
+  %%DEFORM_STIFFNESS_TYPE= WALL_DISTANCE
+  DEFORM_STIFFNESS_TYPE= INVERSE_VOLUME
   %
   % Deform the grid only close to the surface. It is possible to specify how much
   % of the volumetric grid is going to be deformed in meters or inches (1E6 by default)
@@ -269,6 +284,7 @@ $LOCAL_ROOT/data/out/
   %
   % Mesh input file
   MESH_FILENAME= ../../../ONERA/M1/0901_inv.su2
+  %MESH_FILENAME= ../../../ONERA/1901_inv.su2
   MESH_FORMAT= SU2
   TABULAR_FORMAT= CSV
   SCREEN_OUTPUT= (INNER_ITER, WALL_TIME, CAUCHY_DRAG, RMS_DENSITY, AERO_COEFF)
@@ -291,24 +307,24 @@ $LOCAL_ROOT/data/out/
   <<steady_modes_numerics>>
 #+end_src
 ** Copy deformed modal shapes files to HPC and run deformation
-#+begin_src shell :tangle (print (concat mesh_deformation "/hpc.sh")) :mkdirp yes :shebang   #!/usr/bin/zsh :var DIR1=(print program_dir0) DIR2=(print (concat "ONERA_fac" SCALING)) :var NUM_MODES1=(print NUM_MODES)
+#+header: :var LOCAL_DIR=(print local_dir) LOCAL_ROOT=(print local_root) REMOTE_DIR=(print remote_dir) MeshDeformation=(print mesh_deformation_dir) NUM_MODES1=(print NUM_MODES)
+#+begin_src shell :tangle (print (concat mesh_deformation_tangle "/hpc.sh")) :mkdirp yes :shebang   #!/usr/bin/zsh
 
-  for i in {0..$NUM_MODES1..1}
+  for i in {0..$(($NUM_MODES1-1))..1}
     do
         echo "Copying Interpolated Mode $i"
-        sshpass -f $DIR1/examples/pas ssh ac5015@login.hpc.imperial.ac.uk << EOF
-        cd $HOME/runs
-        mkdir -p "$DIR2/MeshDeformation/M$i"
+        sshpass -f $LOCAL_ROOT/examples/pas ssh ac5015@login.hpc.imperial.ac.uk << EOF
+        mkdir -p "$HOME/$REMOTE_DIR/$MeshDeformation/M$i"
     exit
   EOF
-        sshpass -f $DIR1/examples/pas scp $DIR1/$LOCAL_ROOT/data/out/ONERA/MeshDeformation/SU2_mesh/M$i/sbw_fordef.dat ac5015@login.hpc.imperial.ac.uk:$HOME/$REMOTE_ROOT/$MeshDeformation/M$i/sbw_fordef.dat
+        sshpass -f $LOCAL_ROOT/examples/pas scp $LOCAL_ROOT/$LOCAL_DIR/$MeshDeformation/SU2_mesh/M$i/sbw_fordef.dat ac5015@login.hpc.imperial.ac.uk:$HOME/$REMOTE_DIR/$MeshDeformation/M$i/sbw_fordef.dat
 
         echo "Submitting Mode $i"
-        sshpass -f $DIR1/examples/pas scp $DIR1/data/out/ONERA/MeshDeformation/run.pbs ac5015@login.hpc.imperial.ac.uk:$HOME/runs/$DIR2/MeshDeformation/M$i/run.pbs
-        sshpass -f $DIR1/examples/pas scp $DIR1/data/out/ONERA/MeshDeformation/deformation.cfg ac5015@login.hpc.imperial.ac.uk:$HOME/runs/$DIR2/MeshDeformation/M$i/deformation.cfg
+        sshpass -f $LOCAL_ROOT/examples/pas scp $LOCAL_ROOT/$LOCAL_DIR/$MeshDeformation/run.pbs ac5015@login.hpc.imperial.ac.uk:$HOME/$REMOTE_DIR/$MeshDeformation/M$i/run.pbs
+        sshpass -f $LOCAL_ROOT/examples/pas scp $LOCAL_ROOT/$LOCAL_DIR/$MeshDeformation/deformation.cfg ac5015@login.hpc.imperial.ac.uk:$HOME/$REMOTE_DIR/$MeshDeformation/M$i/deformation.cfg
 
-        sshpass -f $DIR1/examples/pas ssh ac5015@login.hpc.imperial.ac.uk << EOF
-        cd $HOME/runs/$DIR2/MeshDeformation/M$i/
+        sshpass -f $LOCAL_ROOT/examples/pas ssh ac5015@login.hpc.imperial.ac.uk << EOF
+        cd $HOME/$REMOTE_DIR/$MeshDeformation/M$i/
         qsub run.pbs
     exit
   EOF
@@ -317,19 +333,19 @@ $LOCAL_ROOT/data/out/
 
 #+end_src
 ** Retrieve paraview surface
-#+begin_src shell :tangle (print (concat mesh_deformation "/retrieve_deformedmesh.sh")) :mkdirp yes :shebang   #!/usr/bin/zsh :var DIR1=(print program_dir0) DIR2=(print (concat "ONERA_fac" SCALING)) NUM_MODES1=(print NUM_MODES)
-  for i in {0..$NUM_MODES1..1}
+#+header: :var LOCAL_DIR=(print local_dir) LOCAL_ROOT=(print local_root) REMOTE_DIR=(print remote_dir) MeshDeformation=(print mesh_deformation_dir) NUM_MODES1=(print NUM_MODES)
+#+begin_src shell :tangle (print (concat mesh_deformation_tangle "/retrieve_deformedmesh.sh")) :mkdirp yes :shebang   #!/usr/bin/zsh
+  for i in {0..$(($NUM_MODES1-1))..1}
     do
-
         echo "Copying surface_deformed.vtu from Mode $i"
-        sshpass -f $DIR1/examples/pas scp ac5015@login.hpc.imperial.ac.uk:$HOME/runs/$DIR2/MeshDeformation/M$i/surface_deformed.vtu $DIR1/data/out/ONERA/MeshDeformation/SU2_mesh/M$i/surface_deformed.vtu 
+        sshpass -f $LOCAL_ROOT/examples/pas scp ac5015@login.hpc.imperial.ac.uk:$HOME/$REMOTE_DIR/$MeshDeformation/M$i/surface_deformed.vtu $LOCAL_ROOT/$LOCAL_DIR/$MeshDeformation/SU2_mesh/M$i/surface_deformed.vtu 
 
   done
 #+end_src
 
 * Steady computation of modal shapes workflow
 ** file for HPC submission
-#+begin_src org :tangle (print (concat mesh_deformation_steady "/run.pbs")) :mkdirp yes
+#+begin_src org :tangle (print (concat steady_deformation_tangle "/run.pbs")) :mkdirp yes
   #!/bin/sh
   #PBS -l walltime=22:59:00
   #PBS -l select=1:ncpus=1:mem=99gb
@@ -351,8 +367,152 @@ $LOCAL_ROOT/data/out/
 #+end_src
 ** Input SU2 config file for deformation
 :PROPERTIES:
-:header-args: :tangle (print (concat mesh_deformation_steady "/euler-onera0.cfg")) :mkdirp yes
+:header-args: :tangle (print (concat steady_deformation_tangle "/euler-onera0.cfg")) :mkdirp yes
 :END:
+*** COMMENT Peter Config
+Comment out this and uncomment the ones below for interactive config
+#+begin_src org
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  %                                                                              %
+  % SU2 configuration file                                                       %
+  % Case description: UHARWARD-ONERA EULER simulation_______  %
+  % Author: ______Peter Nagy___________________________________________________  %
+  % Institution: ______________________________________________________________  %
+  % Date: 26/01/2023                                                             %
+  % File Version 7.4.0 "Blackbird"                                               %
+  %                                                                              %
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  %
+  %
+  %
+  % ------------- DIRECT, ADJOINT, AND LINEARIZED PROBLEM DEFINITION ------------%
+  %
+  % Physical governing equations (EULER, NAVIER_STOKES, NS_PLASMA)
+  %
+  %
+  SOLVER= EULER
+  MATH_PROBLEM= DIRECT
+  AXISYMMETRIC= NO
+  %
+  RESTART_SOL= NO
+  READ_BINARY_RESTART= NO
+  %
+  %
+  OUTPUT_WRT_FREQ=2000
+  SCREEN_WRT_FREQ_INNER= 1
+  %
+  %
+  % -------------------- COMPRESSIBLE FREE-STREAM DEFINITION --------------------%
+  %
+  AOA=0.0
+  FREESTREAM_TEMPERATURE= 216.66000000000003 %216.7
+  FREESTREAM_PRESSURE= 18752.378694043327
+  %
+  MACH_NUMBER= 0.75
+  SIDESLIP_ANGLE= 0.0
+  %
+  % ?
+  SYSTEM_MEASUREMENTS= SI
+  FREESTREAM_OPTION= TEMPERATURE_FS
+  INIT_OPTION= TD_CONDITIONS
+  %
+  % ---------------------- REFERENCE VALUE DEFINITION ---------------------------% 
+  % 
+  % Reference origin for moment computation (m or in) 
+  REF_ORIGIN_MOMENT_X= 0.00
+  REF_ORIGIN_MOMENT_Y= 0.00
+  REF_ORIGIN_MOMENT_Z= 0.00
+  % 
+  % Reference length for moment non-dimensional coefficients (m or in) 
+  REF_LENGTH= 55.136195 %MAC=3.04 not sure why 55
+  % 
+  % Reference area for non-dimensional force coefficients (0 implies automatic 
+  % calculation) (m^2 or in^2) 
+  REF_AREA= 80.0 %160 for full body
+  %
+  % -------------------- BOUNDARY CONDITION DEFINITION --------------------------%
+  %
+  %
+  MARKER_FAR= ( farfield )
+  MARKER_SYM= ( symmetry )
+  MARKER_EULER= ( wing, strut, fuselage, wing_fairing, strut_fairing )
+  MARKER_PLOTTING= ( wing, strut, fuselage, wing_fairing, strut_fairing )
+  MARKER_MONITORING= ( wing, strut, fuselage, wing_fairing, strut_fairing )
+  %
+  % ------------- COMMON PARAMETERS DEFINING THE NUMERICAL METHOD ---------------%
+  %
+  %
+  NUM_METHOD_GRAD= GREEN_GAUSS
+  CFL_NUMBER= 40
+  CFL_ADAPT= NO
+  CFL_ADAPT_PARAM= ( 1.5, 0.5, 1.0, 100.0 )
+  RK_ALPHA_COEFF= ( 0.66667, 0.66667, 1.000000 )
+  ITER= 20000
+  LINEAR_SOLVER= FGMRES
+  LINEAR_SOLVER_ERROR= 1E-6
+  LINEAR_SOLVER_PREC= ILU
+  LINEAR_SOLVER_ITER= 5
+  %
+  % -------------------------- MULTIGRID PARAMETERS -----------------------------% 
+  % 
+  % Multi-grid levels (0 = no multi-grid) 
+  MGLEVEL= 0
+  % 
+  % Multi-grid cycle (V_CYCLE, W_CYCLE, FULLMG_CYCLE) 
+  MGCYCLE= V_CYCLE 
+  % 
+  MG_PRE_SMOOTH= ( 1, 2, 3, 3 ) 
+  MG_POST_SMOOTH= ( 0, 0, 0, 0 ) 
+  MG_CORRECTION_SMOOTH= ( 0, 0, 0, 0 ) 
+  MG_DAMP_RESTRICTION= 0.75 
+  MG_DAMP_PROLONGATION= 0.75
+  %
+  % -------------------- FLOW NUMERICAL METHOD DEFINITION -----------------------%
+  %
+  %
+  CONV_NUM_METHOD_FLOW= JST %ROE
+  MUSCL_FLOW= YES
+  SLOPE_LIMITER_FLOW= VENKATAKRISHNAN %_WANG
+  VENKAT_LIMITER_COEFF= 0.05
+  JST_SENSOR_COEFF= ( 0.5, 0.02 )
+  TIME_DISCRE_FLOW= EULER_IMPLICIT
+  %
+  % Higher values than 1 (3 to 4) make the global Jacobian of central schemes (compressible flow 
+  % only) more diagonal dominant (but mathematically incorrect) so that higher CFL can be used. 
+  CENTRAL_JACOBIAN_FIX_FACTOR= 4.0 
+  % 
+  %
+  % --------------------------- CONVERGENCE PARAMETERS --------------------------%
+  %
+  %CONV_CRITERIA= RESIDUAL
+  CONV_RESIDUAL_MINVAL= -10
+  CONV_STARTITER= 10 
+  CONV_CAUCHY_ELEMS= 100 %300
+  CONV_CAUCHY_EPS= 1E-9 %1E-6
+  CONV_FIELD= (DRAG, LIFT)
+  %
+  %
+  % ------------------------- INPUT/OUTPUT INFORMATION --------------------------%
+  %
+  % Mesh input file
+  MESH_FILENAME= ../../MeshDeformation/M+__+/mesh_out.su2
+  MESH_FORMAT= SU2
+  TABULAR_FORMAT= CSV
+  SCREEN_OUTPUT= (INNER_ITER, WALL_TIME, CAUCHY_DRAG, CAUCHY_LIFT, RMS_DENSITY, AERO_COEFF)
+  HISTORY_OUTPUT= (ITER, FLOW_COEFF, CAUCHY, RMS_RES, AERO_COEFF)
+  VOLUME_OUTPUT= (COORDINATES, SOLUTION, PRIMITIVE, MESH_QUALITY)
+  OUTPUT_FILES= ( RESTART_ASCII, SURFACE_CSV, PARAVIEW, SURFACE_PARAVIEW)
+  %
+  %
+  SOLUTION_FILENAME= restart_flow_IN.csv
+  RESTART_FILENAME= restart_flow_onera_inv_0901def.csv
+  CONV_FILENAME= history_onera_inv_0901def.csv
+  VOLUME_FILENAME= soln_volume_onera_inv_0901def.csv
+  SURFACE_FILENAME= soln_surface_onera_inv_0901def.csv
+  %
+  WRT_FORCES_BREAKDOWN= YES
+  BREAKDOWN_FILENAME= forces_breakdown_onera_inv_0901def.dat
+#+end_src
 *** Fluid solver
 #+begin_src org 
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -496,42 +656,43 @@ CONV_FIELD= (DRAG, LIFT)
 #+end_src
 
 ** Copy files to HPC and run steady
-#+begin_src shell :tangle (print (concat mesh_deformation_steady "/hpc.sh")) :mkdirp yes :shebang   #!/usr/bin/zsh :var DIR1=(print program_dir0) DIR2=(print (concat "ONERA_fac" SCALING)) NUM_MODES1=(print NUM_MODES)
+#+NAME: HPC_STEADY_MODES
+#+header: :var LOCAL_DIR=(print local_dir) LOCAL_ROOT=(print local_root) REMOTE_DIR=(print remote_dir) MeshDeformationSteady=(print steady_deformation_dir) NUM_MODES1=(print NUM_MODES)
+#+begin_src shell :tangle (print (concat steady_deformation_tangle "/hpc.sh")) :mkdirp yes :shebang   #!/usr/bin/zsh
   echo "Running Steady on reference config"
-  mkdir -p $DIR1/data/out/ONERA/SteadyModes/G0
-  sed "s|MESH_FILENAME=.*|MESH_FILENAME= ../../../ONERA/M1/0901_inv.su2|" $DIR1/data/out/ONERA/SteadyModes/euler-onera0.cfg > $DIR1/data/out/ONERA/SteadyModes/G0/euler_onera.cfg
-  sshpass -f $DIR1/examples/pas ssh ac5015@login.hpc.imperial.ac.uk "mkdir -p $HOME/runs/$DIR2/SteadyModes/G0"
-  sshpass -f $DIR1/examples/pas scp $DIR1/data/out/ONERA/SteadyModes/G0/euler_onera.cfg ac5015@login.hpc.imperial.ac.uk:$HOME/runs/$DIR2/SteadyModes/G0/euler_onera.cfg
-  sshpass -f $DIR1/examples/pas scp $DIR1/data/out/ONERA/SteadyModes/run.pbs ac5015@login.hpc.imperial.ac.uk:$HOME/runs/$DIR2/SteadyModes/G0/run.pbs
-  sshpass -f $DIR1/examples/pas ssh ac5015@login.hpc.imperial.ac.uk << EOF
-  cd $HOME/runs/$DIR2/SteadyModes/G0/
+  mkdir -p $LOCAL_ROOT/$LOCAL_DIR/$MeshDeformationSteady/G0
+  sed "s|MESH_FILENAME=.*|MESH_FILENAME= ../../../ONERA/M1/0901_inv.su2|" $LOCAL_ROOT/$LOCAL_DIR/$MeshDeformationSteady/euler-onera0.cfg > $LOCAL_ROOT/$LOCAL_DIR/$MeshDeformationSteady/G0/euler_onera.cfg
+  #sed "s|MESH_FILENAME=.*|MESH_FILENAME= ../../../ONERA/1901_inv.su2|" $LOCAL_ROOT/$LOCAL_DIR/$MeshDeformationSteady/euler-onera0.cfg > $LOCAL_ROOT/$LOCAL_DIR/$MeshDeformationSteady/G0/euler_onera.cfg
+  sshpass -f $LOCAL_ROOT/examples/pas ssh ac5015@login.hpc.imperial.ac.uk "mkdir -p $HOME/$REMOTE_DIR/$MeshDeformationSteady/G0"
+  sshpass -f $LOCAL_ROOT/examples/pas scp $LOCAL_ROOT/$LOCAL_DIR/$MeshDeformationSteady/G0/euler_onera.cfg ac5015@login.hpc.imperial.ac.uk:$HOME/$REMOTE_DIR/$MeshDeformationSteady/G0/euler_onera.cfg
+  sshpass -f $LOCAL_ROOT/examples/pas scp $LOCAL_ROOT/$LOCAL_DIR/$MeshDeformationSteady/run.pbs ac5015@login.hpc.imperial.ac.uk:$HOME/$REMOTE_DIR/$MeshDeformationSteady/G0/run.pbs
+  sshpass -f $LOCAL_ROOT/examples/pas ssh ac5015@login.hpc.imperial.ac.uk << EOF
+  cd $HOME/$REMOTE_DIR/$MeshDeformationSteady/G0/
   qsub run.pbs
   exit
   EOF
 
-  for i in {0..$NUM_MODES1..1}
+  for i in {0..$(($NUM_MODES1-1))..1}
     do
         echo "Creating and copying config file for Mode $i"
-        mkdir -p $DIR1/data/out/ONERA/SteadyModes/M$i
-        sed "s/+__+/$i/" $DIR1/data/out/ONERA/SteadyModes/euler-onera0.cfg > $DIR1/data/out/ONERA/SteadyModes/M$i/euler_onera.cfg
-        sshpass -f $DIR1/examples/pas ssh ac5015@login.hpc.imperial.ac.uk << EOF
-        cd $HOME/runs
-        mkdir -p "$DIR2/SteadyModes/M$i"
+        mkdir -p $LOCAL_ROOT/$LOCAL_DIR/$MeshDeformationSteady/M$i
+        sed "s/+__+/$i/" $LOCAL_ROOT/$LOCAL_DIR/$MeshDeformationSteady/euler-onera0.cfg > $LOCAL_ROOT/$LOCAL_DIR/$MeshDeformationSteady/M$i/euler_onera.cfg
+        sshpass -f $LOCAL_ROOT/examples/pas ssh ac5015@login.hpc.imperial.ac.uk << EOF
+        mkdir -p $HOME/$REMOTE_DIR/$MeshDeformationSteady/M$i
         exit
   EOF
         echo "Copying .cfg"
-        sshpass -f $DIR1/examples/pas scp $DIR1/data/out/ONERA/SteadyModes/M$i/euler_onera.cfg ac5015@login.hpc.imperial.ac.uk:$HOME/runs/$DIR2/SteadyModes/M$i/euler_onera.cfg
+        sshpass -f $LOCAL_ROOT/examples/pas scp $LOCAL_ROOT/$LOCAL_DIR/$MeshDeformationSteady/M$i/euler_onera.cfg ac5015@login.hpc.imperial.ac.uk:$HOME/$REMOTE_DIR/$MeshDeformationSteady/M$i/euler_onera.cfg
 
         echo "Copying run.pbs"
-        sshpass -f $DIR1/examples/pas scp $DIR1/data/out/ONERA/SteadyModes/run.pbs ac5015@login.hpc.imperial.ac.uk:$HOME/runs/$DIR2/SteadyModes/M$i/run.pbs
-        sshpass -f $DIR1/examples/pas ssh ac5015@login.hpc.imperial.ac.uk << EOF
-        cd $HOME/runs/$DIR2/SteadyModes/M$i/
+        sshpass -f $LOCAL_ROOT/examples/pas scp $LOCAL_ROOT/$LOCAL_DIR/$MeshDeformationSteady/run.pbs ac5015@login.hpc.imperial.ac.uk:$HOME/$REMOTE_DIR/$MeshDeformationSteady/M$i/run.pbs
+        sshpass -f $LOCAL_ROOT/examples/pas ssh ac5015@login.hpc.imperial.ac.uk << EOF
+        cd $HOME/$REMOTE_DIR/$MeshDeformationSteady/M$i/
         qsub run.pbs
     exit
   EOF
 
   done
-
 #+end_src
 * HB workflow
 ** Input SU2 config file
@@ -751,7 +912,8 @@ CONV_FIELD= (DRAG, LIFT)
   OUTPUT_WRT_FREQ=500
   SCREEN_WRT_FREQ_INNER= 1  
   % Mesh input file
-  MESH_FILENAME= 0901_inv.su2
+  MESH_FILENAME= 0901_inv.su2 # 1901_inv.su2
+
   MESH_FORMAT= SU2
   TABULAR_FORMAT= CSV
   SCREEN_OUTPUT= (INNER_ITER, WALL_TIME, CAUCHY_DRAG, RMS_DENSITY, AERO_COEFF)
@@ -770,4 +932,93 @@ CONV_FIELD= (DRAG, LIFT)
 
 #+end_src
 
+* Orchestrator
+** Check hpc status
+#+begin_src shell :tangle (print (concat local_root local_dir onera_dir "/check_hpc.sh")) :mkdirp yes :shebang   #!/usr/bin/zsh
+  echo "Running HPC check."
+  echo "qstat:"
+  sshpass -f $LOCAL_ROOT/examples/pas ssh ac5015@login.hpc.imperial.ac.uk << EOF
+          cd $HOME
+          qstat
+  exit
+  EOF
+#+end_src
+
+#+NAME: Check_HPC
+#+begin_src bash :dir (print (concat local_root local_dir onera_dir)) :shebang #!/usr/bin/zsh :results output :async
+  echo Current directory:
+  pwd
+  echo RUNNING check_hpc.sh
+  zsh check_hpc.sh
+#+end_src
+
+** Mesh deformation
+*** Orchestrator_MeshDeformation
+#+NAME: Orchestrator_MeshDeformation
+#+begin_src bash :dir (print mesh_deformation_tangle) :shebang #!/usr/bin/zsh :results output :async
+  echo Current directory:
+  pwd
+  echo RUNNING hpc.sh
+  zsh hpc.sh
+#+end_src
+
+#+RESULTS: Orchestrator_MeshDeformation
+#+begin_example
+Current directory:
+/home/ac5015/programs/RHEAtools/data/out/ONERA_fac15.0/MeshDeformation_ft
+RUNNING hpc.sh
+Copying Interpolated Mode 0
+Submitting Mode 0
+7219026.pbs
+Copying Interpolated Mode 1
+Submitting Mode 1
+7219028.pbs
+Copying Interpolated Mode 2
+Submitting Mode 2
+7219031.pbs
+Copying Interpolated Mode 3
+Submitting Mode 3
+7219035.pbs
+Copying Interpolated Mode 4
+Submitting Mode 4
+7219039.pbs
+Copying Interpolated Mode 5
+Submitting Mode 5
+7219040.pbs
+Copying Interpolated Mode 6
+Submitting Mode 6
+7219041.pbs
+Copying Interpolated Mode 7
+Submitting Mode 7
+7219042.pbs
+#+end_example
+
+*** Orchestrator_RecoverParaview
+#+NAME: Orchestrator_RecoverParaview
+#+begin_src bash :dir (print mesh_deformation_tangle) :shebang #!/usr/bin/zsh :results output :async
+  echo Recovering paraview modal shapes:
+  echo retrieve_deformedmesh.sh
+  zsh retrieve_deformedmesh.sh
+#+end_src
+
+** Steady modal shapes
+#+NAME: Orchestrator_SteadyModes
+#+header: 
+#+begin_src bash :dir (print steady_deformation_tangle) :shebang #!/usr/bin/zsh :results output :async
+  echo Current directory:
+  pwd
+  echo ####################
+  echo RUNNING hpc.sh
+  zsh hpc.sh
+#+end_src
+
+#+begin_src zsh :dir (print mesh_deformation_tangle) :shebang #!/usr/bin/zsh :results output
+  echo Current directory:
+  sleep 4
+  echo RUNNING hpc.sh
+#+end_src
+
+#+RESULTS:
+: Current directory:
+: RUNNING hpc.sh
 

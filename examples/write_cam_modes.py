@@ -23,7 +23,7 @@ parser.add_argument("-d","--dir2save", nargs='?', const=None, type=str)
 args = parser.parse_args()
 
 if args.scaling is None:
-    MODES_SCALING = 10
+    MODES_SCALING = 25.
 else:
     MODES_SCALING = args.scaling
 
@@ -33,19 +33,19 @@ else:
     NUM_MODES = list(range(args.num_modes))
 
 if args.filtering is None:
-    FILTERING = None
+    FILTERING = filter_sigmoid
 else:
     FILTERING = locals()[args.filtering]
     
 if args.dir2save is None:
     SAVE_DIR0 = f"./data/out/ONERA_fac{MODES_SCALING}/MeshDeformation/"
 else:
-    SAVE_DIR0 = f"./data/out/ONERA_fac{MODES_SCALING}/{args.dir2save}/"
-
+    #SAVE_DIR0 = f"./data/out/ONERA_fac{MODES_SCALING}/{args.dir2save}/"
+    SAVE_DIR0 = f"{args.dir2save}"
 print("Modes scaling: %s" %MODES_SCALING)
 print("Modes : %s" %NUM_MODES)
-print("Filtering : %s" %args.filtering)
-print("Directory : %s" %args.dir2save)
+print("Filtering : %s" %FILTERING)
+print("Directory : %s" %SAVE_DIR0)
 
 ##################################################
 model = BDF()
@@ -142,6 +142,7 @@ df0 = pd.read_csv("./data/in/sbw_def0.txt",
                   names=['id', 'x', 'y', 'z'],
                   comment="#",
                   index_col=False, sep=' ')
+#print(Xm[0] - Xv)
 
 index_parts = 284698
 df_wing = df0.loc[:index_parts-1]
@@ -170,7 +171,8 @@ displacements_wing, coord_wing = src.write_modes.calculate_interpolated_modes(Xv
                                                                               filtering=FILTERING)
 displacements_strut, coord_strut = src.write_modes.calculate_interpolated_modes(Xv, Xm, Xstrut,
                                                                                 filtering=FILTERING)
-
+#print("#################")
+#print(displacements_wing[0])
 src.write_modes.save_interpolated_modes_parts(SAVE_DIR0 + "/SU2_mesh/",
                                               "sbw_forHB.dat",
                                               displacements_wing,

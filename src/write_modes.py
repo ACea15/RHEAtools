@@ -63,9 +63,9 @@ def calculate_interpolated_modes(Xv, Xm, X, ids=None, filtering: callable=None, 
         Uy = interpolator_rbfY(X)
         Uz = interpolator_rbfZ(X)
         if filtering is not None:
-            Ux = filtering(Ux)
-            Uy = filtering(Uy)
-            Uz = filtering(Uz)
+            Ux = Ux * filtering(X1)
+            Uy = Uy * filtering(X1)
+            Uz = Uz * filtering(X1)
         Rx = Ux + X0
         Ry = Uy + X1
         Rz = Uz + X2
