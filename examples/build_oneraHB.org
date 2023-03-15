@@ -83,7 +83,7 @@
 * Modal shapes workflow
 #+NAME: ModalShapes
 #+header: 
-#+begin_src bash :dir (print program_dir0) :shebang #!/usr/bin/zsh :results output :var OUTPUT_DIR=(print mesh_deformation_tangle) dir1=(print local_root) NUM_MODES1=(print NUM_MODES) SCALING1=(print SCALING) :tangle (print (concat mesh_deformation_tangle "/generate_modes.sh")) :async
+#+begin_src bash :dir (print program_dir0) :shebang #!/usr/bin/zsh :results output :var OUTPUT_DIR=(print mesh_deformation_tangle) dir1=(print local_root) NUM_MODES1=(print NUM_MODES) SCALING1=(print SCALING) :tangle (print (concat mesh_deformation_tangle "/generate_modes.sh")) :async 
   echo $dir1
   PYTHONPATH=$PYTHONPATH:$dir1
   python examples/write_cam_modes.py -m $NUM_MODES1 -s $SCALING1 -f filter_sigmoid -d $OUTPUT_DIR
@@ -94,7 +94,7 @@
 /home/ac5015/programs/RHEAtools/examples/..
 Modes scaling: 15.0
 Modes : [0, 1, 2, 3, 4, 5, 6, 7]
-Filtering : <function filter_sigmoid at 0x7f03bc693eb0>
+Filtering : <function filter_sigmoid at 0x7f8ca8b5feb0>
 Directory : /home/ac5015/programs/RHEAtools/examples/../data/out/ONERA_fac15.0/MeshDeformation_ft
 DEBUG:   bdf.py:1001                  ---starting BDF.read_bdf of ./data/in/SOL103/polimi-103cam.bdf---
 DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOL103/polimi-103cam.bdf'
@@ -182,6 +182,7 @@ times = [  1.   2.   3.   4.   5.   6.   7.   8.   9.  10.  11.  12.  13.  14.
  141. 142. 143. 144. 145. 146. 147. 148. 149. 150.]
 
 #+end_example
+
 
 * Mesh deformation workflow
 ** file for HPC submission
@@ -969,28 +970,28 @@ Current directory:
 RUNNING hpc.sh
 Copying Interpolated Mode 0
 Submitting Mode 0
-7219026.pbs
+7226299.pbs
 Copying Interpolated Mode 1
 Submitting Mode 1
-7219028.pbs
+7226310.pbs
 Copying Interpolated Mode 2
 Submitting Mode 2
-7219031.pbs
+7226318.pbs
 Copying Interpolated Mode 3
 Submitting Mode 3
-7219035.pbs
+7226319.pbs
 Copying Interpolated Mode 4
 Submitting Mode 4
-7219039.pbs
+7226322.pbs
 Copying Interpolated Mode 5
 Submitting Mode 5
-7219040.pbs
+7226324.pbs
 Copying Interpolated Mode 6
 Submitting Mode 6
-7219041.pbs
+7226326.pbs
 Copying Interpolated Mode 7
 Submitting Mode 7
-7219042.pbs
+7226328.pbs
 #+end_example
 
 *** Orchestrator_RecoverParaview
@@ -1000,6 +1001,20 @@ Submitting Mode 7
   echo retrieve_deformedmesh.sh
   zsh retrieve_deformedmesh.sh
 #+end_src
+
+#+RESULTS: Orchestrator_RecoverParaview
+#+begin_example
+Recovering paraview modal shapes:
+retrieve_deformedmesh.sh
+Copying surface_deformed.vtu from Mode 0
+Copying surface_deformed.vtu from Mode 1
+Copying surface_deformed.vtu from Mode 2
+Copying surface_deformed.vtu from Mode 3
+Copying surface_deformed.vtu from Mode 4
+Copying surface_deformed.vtu from Mode 5
+Copying surface_deformed.vtu from Mode 6
+Copying surface_deformed.vtu from Mode 7
+#+end_example
 
 ** Steady modal shapes
 #+NAME: Orchestrator_SteadyModes
@@ -1011,6 +1026,9 @@ Submitting Mode 7
   echo RUNNING hpc.sh
   zsh hpc.sh
 #+end_src
+
+#+RESULTS: Orchestrator_SteadyModes
+: ab33079fce60c2070422965e67924250
 
 #+begin_src zsh :dir (print mesh_deformation_tangle) :shebang #!/usr/bin/zsh :results output
   echo Current directory:

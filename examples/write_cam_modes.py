@@ -131,13 +131,13 @@ m2.build_gridmesh(nchord, save_file='Gridcam_half',
 m2.build_modalmesh(nchord, range(35), save_file='Mcam_half',
                    build_symmetric=False, save_dir=SAVE_DIR0 + "/DLMgrid/")
 
-# Xv = np.vstack([m2.wing._points, m2.strut._points])
-# Xm = [np.vstack([m2.wing._modalpoints[mi],
-#                  m2.strut._modalpoints[mi]]) for mi in modes]
+Xv = np.vstack([m2.wing._points, m2.strut._points])
+Xm = [np.vstack([m2.wing._modalpoints[mi],
+                 m2.strut._modalpoints[mi]]) for mi in NUM_MODES]
 # Xv = m2.wing._points[0::10]
 # Xm = [m2.wing._modalpoints[k][0::10] for k in modes]
-Xv = m2.wing._points
-Xm = [m2.wing._modalpoints[k] for k in NUM_MODES]
+# Xv = m2.wing._points
+# Xm = [m2.wing._modalpoints[k] for k in NUM_MODES]
 df0 = pd.read_csv("./data/in/sbw_def0.txt",
                   names=['id', 'x', 'y', 'z'],
                   comment="#",
