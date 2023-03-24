@@ -5,17 +5,27 @@ from dataclasses import dataclass
 class MeshData:
 
     NDIME: int = 0
-    NELEM: list = None
-    NPOIN: list = None
+    NELEM: int = 0
+    NPOIN: int = 0
     NMARK: int = 0
-    MARKER_TAGS: dict = None
+    MARKER_TAGS: list[str] = None
     MARKER_ELEMS: dict = None
     points: list = None
     elements: list = None
     markers: dict = None
     
     def __post_init__(self):
-        pass
+
+        if self.MARKER_TAGS is None:
+            self.MARKER_TAGS = list()
+        if self.MARKER_ELEMS is None:
+            self.MARKER_ELEMS = dict()
+        if self.points is None:
+            self.points = list()
+        if self.elements is None:
+            self.elements = list()
+        if self.markers is None:
+            self.markers = dict()
     
 class ReadMesh:
 
@@ -23,6 +33,8 @@ class ReadMesh:
         self.mesh_file = mesh_file
         self.current_group = None
         self.current_reading_lines = []
+        self.mesh_data = MeshData()
+        self._markers_set = dict()
         
     def set_line_type(self, line):
         if "=" in line:
@@ -48,6 +60,8 @@ class ReadMesh:
         elif line0.lower() == "marker_tag":
             self.mesh_data.MARKER_TAGS.append(line1)
             self.current_marker = line1
+            self.mesh_data.markers[self.current_marker] = list()
+            self._markers_set[self.current_marker] = set()
         elif line0.lower() == "marker_elems":
             self.mesh_data.MARKER_ELEMS[self.current_marker] = int(line1)
             
@@ -60,7 +74,8 @@ class ReadMesh:
             self.mesh_data.elements.append(split_line)            
         elif self.current_group == "NMARK":
             split_line = [int(li) for li in line.split(" ") if li != '']
-            self.mesh_data.elements.append(split_line)
+            self.mesh_data.markers[self.current_marker].append(split_line)
+            _ = [self._markers_set[self.current_marker].add(si) for si in split_line]
 
     def read_file(self):
         with open(self.mesh_file, 'r') as fp:
