@@ -87,6 +87,15 @@ def save_interpolated_modes(interpolated_modes, folder_name, file_name="sbw_def.
         folder_namei = folder_name + str(i)
         pathlib.Path(folder_namei).mkdir(parents=True, exist_ok=True)
         np.savetxt(folder_namei + "/" + file_name, interpolated_modes[i], fmt=['%i', '%.8e', '%.8e', '%.8e'])
+        
+def save_interpolated_modes_full(interpolated_modes, folder_name, file_name="sbw_def.dat"):
+
+    num_modes = len(interpolated_modes)
+    for i in range(num_modes):
+
+        folder_namei = folder_name + str(i)
+        pathlib.Path(folder_namei).mkdir(parents=True, exist_ok=True)
+        np.savetxt(folder_namei + "/" + file_name, interpolated_modes[i], fmt=['%i', '%.8e', '%.8e', '%.8e'])
 
 def save_interpolated_modes_parts(folder_name, file_name="sbw_def.dat", *args):
     num_modes = len(args[0])

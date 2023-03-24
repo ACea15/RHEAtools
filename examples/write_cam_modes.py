@@ -9,8 +9,8 @@ import src.filters
 
 def filter_sigmoid(x):
     a = 1.
-    b = 5.
-    c = 2.2#1.85 # 2.
+    b = 15.#6. #5
+    c = 2.5 #1.85 # 2.
     return src.filters.filter_sigmoid(x, a, b, c)
 
 ###
@@ -19,33 +19,39 @@ parser.add_argument("-m","--num_modes", nargs='?', const=4, type=int)
 parser.add_argument("-s","--scaling", nargs='?', const=1., type=float)
 parser.add_argument("-f","--filtering", nargs='?', const=None, type=str)
 parser.add_argument("-d","--dir2save", nargs='?', const=None, type=str)
+parser.add_argument("-a","--markers_file", nargs='?', const=None, type=str)
 
 args = parser.parse_args()
 
 if args.scaling is None:
-    MODES_SCALING = 25.
+    MODES_SCALING = 20.
 else:
     MODES_SCALING = args.scaling
-
 if args.num_modes is None:
     NUM_MODES = list(range(5))
 else:
     NUM_MODES = list(range(args.num_modes))
-
 if args.filtering is None:
     FILTERING = filter_sigmoid
 else:
     FILTERING = locals()[args.filtering]
-    
 if args.dir2save is None:
     SAVE_DIR0 = f"./data/out/ONERA_fac{MODES_SCALING}/MeshDeformation/"
 else:
     #SAVE_DIR0 = f"./data/out/ONERA_fac{MODES_SCALING}/{args.dir2save}/"
     SAVE_DIR0 = f"{args.dir2save}"
+if args.markers_file is None:
+    MARKERS_FILE = "./data/in/sbw_def0.txt"
+    MARKERS_FILE = "./data/in/sbw_1901.txt"
+else:
+    #SAVE_DIR0 = f"./data/out/ONERA_fac{MODES_SCALING}/{args.dir2save}/"
+    MARKERS_FILE = f"./data/in/{args.markers_file}"
+
 print("Modes scaling: %s" %MODES_SCALING)
 print("Modes : %s" %NUM_MODES)
 print("Filtering : %s" %FILTERING)
 print("Directory : %s" %SAVE_DIR0)
+print("MARKERS_FILE : %s" %MARKERS_FILE)
 
 ##################################################
 model = BDF()
@@ -138,20 +144,30 @@ Xm = [np.vstack([m2.wing._modalpoints[mi],
 # Xm = [m2.wing._modalpoints[k][0::10] for k in modes]
 # Xv = m2.wing._points
 # Xm = [m2.wing._modalpoints[k] for k in NUM_MODES]
-df0 = pd.read_csv("./data/in/sbw_def0.txt",
+df0 = pd.read_csv(MARKERS_FILE,
                   names=['id', 'x', 'y', 'z'],
                   comment="#",
                   index_col=False, sep=' ')
 #print(Xm[0] - Xv)
-
-index_parts = 284698
-df_wing = df0.loc[:index_parts-1]
-df_strut = df0.loc[index_parts:]
-df_combined = pd.concat([df_wing.set_index('id'),
-                         df_strut.set_index('id')]).drop_duplicates()
-
-Xwing = df_wing[['x', 'y', 'z']].to_numpy()
-Xstrut = df_strut[['x', 'y', 'z']].to_numpy()
+in_parts = True
+full_mesh = False
+if (MARKERS_FILE == "./data/in/sbw_def0.txt" or
+    MARKERS_FILE == "./data/in/sbw_0901.txt"):
+    index_parts = 284698
+elif (MARKERS_FILE == "./data/in/sbw_1901.txt"):
+    index_parts = 219467
+elif (MARKERS_FILE == "./data/in/sbw_1901FULL.txt"):
+    df_combined = df0.drop_duplicates().set_index('id')
+    in_parts = False
+elif (MARKERS_FILE == "./data/in/sbw_1901MESHFULL.txt"):
+    df_combined = df0.drop_duplicates().set_index('id')
+    in_parts = False
+    full_mesh = True
+if in_parts:
+    df_wing = df0.loc[:index_parts-1]
+    df_strut = df0.loc[index_parts:]
+    df_combined = pd.concat([df_wing.set_index('id'),
+                             df_strut.set_index('id')]).drop_duplicates()
 
 # modal_displacements, modal_coord = src.write_modes.calculate_interpolated_modes(Xv, Xm,
 #                                                                                 df_combined.to_numpy(),
@@ -160,24 +176,31 @@ modal_displacements, modal_coord = src.write_modes.calculate_interpolated_modes(
                                                                                 df_combined.to_numpy(),
                                                                                 df_combined.index.to_numpy(),
                                                                                 filtering=FILTERING)
-
-src.write_modes.save_interpolated_modes(modal_coord,
-                                        folder_name=SAVE_DIR0 + "/SU2_mesh/M",
-                                        file_name="sbw_fordef.dat")
+if full_mesh:
+    src.write_modes.save_interpolated_modes(modal_coord,
+                                            folder_name=SAVE_DIR0 + "/SU2_fullmesh/M",
+                                            file_name="sbw_fordef.dat")
+else:
+    src.write_modes.save_interpolated_modes(modal_coord,
+                                            folder_name=SAVE_DIR0 + "/SU2_mesh/M",
+                                            file_name="sbw_fordef.dat")
 #########################################################
 # displacements_wing, coord_wing = src.write_modes.calculate_interpolated_modes(Xv, Xm, Xwing)
 # displacements_strut, coord_strut = src.write_modes.calculate_interpolated_modes(Xv, Xm, Xstrut)
-displacements_wing, coord_wing = src.write_modes.calculate_interpolated_modes(Xv, Xm, Xwing,
-                                                                              filtering=FILTERING)
-displacements_strut, coord_strut = src.write_modes.calculate_interpolated_modes(Xv, Xm, Xstrut,
-                                                                                filtering=FILTERING)
-#print("#################")
-#print(displacements_wing[0])
-src.write_modes.save_interpolated_modes_parts(SAVE_DIR0 + "/SU2_mesh/",
-                                              "sbw_forHB.dat",
-                                              displacements_wing,
-                                              displacements_strut)
+if in_parts:
+    Xwing = df_wing[['x', 'y', 'z']].to_numpy()
+    Xstrut = df_strut[['x', 'y', 'z']].to_numpy()
+    displacements_wing, coord_wing = src.write_modes.calculate_interpolated_modes(Xv, Xm, Xwing,
+                                                                                  filtering=FILTERING)
+    displacements_strut, coord_strut = src.write_modes.calculate_interpolated_modes(Xv, Xm, Xstrut,
+                                                                                    filtering=FILTERING)
+    #print("#################")
+    #print(displacements_wing[0])
+    src.write_modes.save_interpolated_modes_parts(SAVE_DIR0 + "/SU2_mesh/",
+                                                  "sbw_forHB.dat",
+                                                  displacements_wing,
+                                                  displacements_strut)
 
-src.write_modes.save_grid_parts(SAVE_DIR0 + "/SU2_mesh/",
-                                coord_wing[0] - displacements_wing[0],
-                                coord_strut[0] - coord_strut[0])
+    src.write_modes.save_grid_parts(SAVE_DIR0 + "/SU2_mesh/",
+                                    coord_wing[0] - displacements_wing[0],
+                                    coord_strut[0] - coord_strut[0])

@@ -23,8 +23,8 @@ if (__name__ == "__main__"):
     ax.grid()
     x = np.linspace(-5., 10., 1000)
     a = 1
-    b = 10#50 np.linspace(0.5, 50, 5)
-    c = [2.1]
+    b = 25#50 np.linspace(0.5, 50, 5)
+    c = [2.5]
     for i, ci in enumerate(c):
         y = filter_sigmoid(x, a, b, ci)
         ax.plot(x, y, label=i)
