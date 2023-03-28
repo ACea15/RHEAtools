@@ -1,7 +1,9 @@
 import numpy as np
 import json
+import inspect
 from pyNastran.bdf.bdf import BDF
 from pyNastran.op2.op2 import OP2
+import pyNastran.op4.op4 as op4
 from pyNastran.f06 import parse_flutter as flut
 import pathlib
 import subprocess
@@ -24,6 +26,23 @@ def shift_conm2s(model, chord, shift_chord, conm2_ids, conm2_symm):
 def modify_pbeams(model, pbeam_ids, Afactor):
     for k in pbeam_ids:
         model.properties[k].A *= Afactor
+
+def stretch_strutchord(model, a_factor, pbeam_ids, caero_ids, **kwags):
+
+
+    for k in pbeam_ids:
+        model.properties[k].A *= a_factor**2
+        model.properties[k].i1 *= a_factor**4
+        model.properties[k].i2 *= a_factor**4
+        
+    for k in caero_ids:
+        model.caeros[k].x12 *= a_factor
+        model.caeros[k].x43 *= a_factor
+
+    # for k, v in conm2_symm.items():
+    #     model.masses[conm2_ids[k]].X += np.array([chord * shift_chord[k], 0., 0.])
+    #     model.masses[conm2_ids[v]].X += np.array([chord * shift_chord[k], 0., 0.])
+
 
 def write_model(fileX, model, write_directly=False):
     if write_directly:
@@ -98,21 +117,6 @@ def validate_interface(original_file, new_file):
     #             damping=obj1.results[mi, :, obj1.idamping]
     #             )
 
-def stretch_strutchord(model, a_factor, pbeam_ids, caero_ids, **kwags):
-
-
-    for k in pbeam_ids:
-        model.properties[k].A *= a_factor**2
-        model.properties[k].i1 *= a_factor**4
-        model.properties[k].i2 *= a_factor**4
-        
-    for k in caero_ids:
-        model.caeros[k].x12 *= a_factor
-        model.caeros[k].x43 *= a_factor
-
-    # for k, v in conm2_symm.items():
-    #     model.masses[conm2_ids[k]].X += np.array([chord * shift_chord[k], 0., 0.])
-    #     model.masses[conm2_ids[v]].X += np.array([chord * shift_chord[k], 0., 0.])
     
 def parametric_factory(_range: list[dict], parametric_function: callable,
                        original_file: str, folder_out: pathlib.Path, file_out, *args, **kwargs):
@@ -120,7 +124,7 @@ def parametric_factory(_range: list[dict], parametric_function: callable,
     folder_parametricpath = folder_out.parent / (folder_out.name + "_cases")
     folder_parametricpath.mkdir(parents=True, exist_ok=True)
     for i, si in enumerate(_range):
-        with open(f'{folder_parametricpath}/_{i}.json', 'wb') as handle:
+        with open(f'{folder_parametricpath}/_{i}.json', 'w') as handle:
             json.dump(si, handle)
         model = BDF()
         model.read_bdf(original_file)
@@ -300,134 +304,169 @@ def build_results_df(files, parametric_var, results):
 
     return results_df
 
-###########################################################
-# Running
-###########################################################
+if (__name__ == "__main__"):
+    ###########################################################
+    # Running
+    ###########################################################
+    VALIDATE = True
+    STRUT_SHIFTING_ANALYSIS = True
+    CONM2_SHIFTING = True
+    PBEAM = False
+    RUNNING = True
+    RUN_INIT = 1
+    RUN_GAFs = True
+    CHORD_EXTENSION = True
+    NUM_MODES = 8
+    LABEL = "oldM"
+    __file__ = inspect.getfile(lambda: None)
+    file_path = pathlib.Path(__file__)
+    repo_path = file_path.parents[1]
+    original_file_name  =  repo_path / "data/in/SOL145/polimi-145cam_078M.bdf"
+    original_file_name103  =  repo_path / "data/in/SOL103/polimi-103cam.bdf"
+    original_file_nameGAFs  =  repo_path / "data/in/SOLGAFs/polimi-145cam_078M.bdf"
+    original_file_nameGAFs103 =  repo_path / "data/in/SOLGAFs/polimi-103cam.bdf"
 
-VALIDATE = False
-STRUT_SHIFTING_ANALYSIS = False
-CONM2_SHIFTING = False
-PBEAM = False
-RUNNING = True
-CHORD_EXTENSION = True
-import inspect
-__file__ = inspect.getfile(lambda: None)
-file_path = pathlib.Path(__file__)
-repo_path = file_path.parents[1]
-original_file_name  =  repo_path / "data/in/SOL145/polimi-145cam_078M.bdf"
-if RUNNING:
-    #run_nastran(original_file_name)
-    model0 = BDF()
-    model0.read_bdf(original_file_name)
-    strut_panels = [k for k in model0.caeros.keys() if k > 31000 and k < 37000]
-    strut_conm2s = [k for k in model0.masses.keys() if model0.masses[k].eid in list(range(233,328+1))]
-    strut_pbeams = [k for k in model0.properties.keys() if model0.properties[k].Pid() in list(range(5000, 5022+1))] 
-    strut_conm2s_symmetric = {i: i+48 for i in range(2, 48)}
-    strut_conm2s_coord = conm2_coord(model0, strut_conm2s)
-    chord = model0.caeros[strut_panels[-1]].x12
-if VALIDATE:
-    validate_folder = repo_path / "data/out/parametric_analysis/VALIDATE_PANELS"
-    shift_strut_dict = {k: 0. for k in strut_panels}
-    shift_panels(model0, shift_strut_dict)
-    validate_folder.mkdir(parents=True, exist_ok=True)
-    fileX =  validate_folder / "sol_145.bdf"
-    write_model(fileX, model0)
-    run_nastran(fileX)
-    validate_interface(original_file_name, fileX)
-if STRUT_SHIFTING_ANALYSIS:
-    shift_range = [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]
-    build_strut_shifting(shift_range, strut_panels, original_file_name, file_name= "sol145",
-                         folder="/home/acea/runs/polimi/models/shift_panelsLM25")
-if CONM2_SHIFTING:
-    shift_chord = copy_raws([0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25],
-                            strut_conm2s_symmetric)
-    build_strut_conm2shifting(chord, shift_chord, strut_conm2s, strut_conm2s_symmetric,
-                              original_file_name)
-if PBEAM:
-    pbeam_factors = [0.75, 0.9, 1., 1.1, 1.2]
-    build_strut_pbeams(pbeam_factors, strut_pbeams, original_file_name)
+    if RUN_INIT:
+        run_nastran(original_file_name)
+        run_nastran(original_file_name103)
 
-if CHORD_EXTENSION:
-    folder_out = repo_path / "data/out/parametric_analysis/CHORD_EXTENSION_M25"
-    file_out = "sol145.bdf"
-    A_FACTOR = [{'a_factor': a} for a in [0.7, 0.85, 1., 1.1, 1.2, 1.3]]
-    parametric_factory(A_FACTOR, stretch_strutchord, original_file_name, folder_out, file_out,
-                       pbeam_ids=strut_pbeams, caero_ids=strut_panels)
+    if RUNNING:
+        model0 = BDF()
+        model0.read_bdf(original_file_name)
+        strut_panels = [k for k in model0.caeros.keys() if k > 31000 and k < 37000]
+        strut_conm2s = [k for k in model0.masses.keys() if model0.masses[k].eid in list(range(233,328+1))]
+        strut_pbeams = [k for k in model0.properties.keys() if model0.properties[k].Pid() in list(range(5000, 5022+1))] 
+        strut_conm2s_symmetric = {i: i+48 for i in range(2, 48)}
+        strut_conm2s_coord = conm2_coord(model0, strut_conm2s)
+        chord = model0.caeros[strut_panels[-1]].x12
+    if VALIDATE:
+        validate_folder = repo_path / "data/out/parametric_analysis/VALIDATE_PANELS"
+        shift_strut_dict = {k: 0. for k in strut_panels}
+        shift_panels(model0, shift_strut_dict)
+        validate_folder.mkdir(parents=True, exist_ok=True)
+        fileX =  validate_folder / "sol_145.bdf"
+        write_model(fileX, model0)
+        run_nastran(fileX)
+        validate_interface(original_file_name, fileX)
+    if STRUT_SHIFTING_ANALYSIS:
+        shift_range = [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]
+        #shift_strut_dict = {k: si for k in strut_panels}
+        #build_strut_shifting(shift_range, strut_panels, original_file_name, file_name= "sol145",
+        #                     folder="/home/acea/runs/polimi/models/shift_panelsLM{}".format(NUM_MODES))
+        folder_out = repo_path / "data/out/parametric_analysis/shift_panels_{}{}".format(LABEL, NUM_MODES)
+        file_out = "sol145.bdf"
+        SHIFT_PANELS = [{'caero_shift': a} for a in [{k: si for k in strut_panels} for si in shift_range]]
+        parametric_factory(SHIFT_PANELS, shift_panels, original_file_name, folder_out, file_out)
 
+    if CONM2_SHIFTING:
+        shift_chord = copy_raws([0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25],
+                                strut_conm2s_symmetric)
+        #build_strut_conm2shifting(chord, shift_chord, strut_conm2s, strut_conm2s_symmetric,
+        #                           original_file_name)
+        folder_out = repo_path / "data/out/parametric_analysis/shift_conm2s_{}{}".format(LABEL, NUM_MODES)
+        file_out = "sol145.bdf"
+        SHIFT_MASSES = [{'shift_chord': a} for a in shift_chord]
+        parametric_factory(SHIFT_MASSES, shift_conm2s, original_file_name, folder_out, file_out,
+                           chord=chord, conm2_ids=strut_conm2s, conm2_symm=strut_conm2s_symmetric)
 
-###########################################################
-# Plotting
-###########################################################
+    if PBEAM:
+        pbeam_factors = [0.75, 0.9, 1., 1.1, 1.2]
+        build_strut_pbeams(pbeam_factors, strut_pbeams, original_file_name)
 
-# main_folder = "/home/ac5015/pCloudDrive/Imperial/PostDoc/models_POLIMI/"
-# files = [f"shift_conm2s2_{xi}" for xi in range(11)]
-# files += [f"shift_panels2_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
-# files += [f"shift_panels__{xi}" for xi in [0.1, 0.15, 0.2, 0.25]]
+    if CHORD_EXTENSION:
+        folder_out = repo_path / "data/out/parametric_analysis/CHORD_EXTENSION_{}{}".format(LABEL, NUM_MODES)
+        file_out = "sol145.bdf"
+        A_FACTOR = [{'a_factor': a} for a in [0.7, 0.85, 1., 1.1, 1.2, 1.3]]
+        parametric_factory(A_FACTOR, stretch_strutchord, original_file_name, folder_out, file_out,
+                           pbeam_ids=strut_pbeams, caero_ids=strut_panels)
 
-# collector_list = ['sol145']
-# collector = {ci: None for ci in collector_list}
-# results = build_flutter(main_folder, files, Modes=range(15), collector=collector)
+    # matrices = op4_data.read_op4("/run/media/acea/65543cfa-ec97-40eb-92e3-413436faad8d/pcloud/Computations/FEM4INAS/Models/XRF1-2/NASTRAN/output_fem/Phi5.op4")
+    # (formA, A) = matrices['PHG']
+    if RUN_GAFs:
+        op2 = OP2()
+        op2.read_op2(original_file_name103.with_suffix('.op2'))
+        eig1 = op2.eigenvectors[1]
+        modes = eig1.data[:NUM_MODES]
+        op2_nummodes, op2.numnodes, op2.numdim = modes.shape
+        modes_reshape = modes.reshape((op2_nummodes, op2.numnodes * op2.numdim)).T
+        op4_data = op4.OP4()
+        op4_data.write_op4(str(original_file_nameGAFs.with_suffix('.op4')), {'PHG':(2, modes_reshape)}, is_binary=False)
+        run_nastran(original_file_nameGAFs)
+        #run_nastran(original_file_nameGAFs103) #Not working
 
-# import plotly.express as px
-# import pandas as pd
+    ###########################################################
+    # Plotting
+    ###########################################################
 
-# df = pd.DataFrame({'flutter': [results["shift_conm2s2_%s" %i]["FlutterSpeed"] for i in range(11)],
-#                    'flutter_mode': [results["shift_conm2s2_%s" %i]["FlutterMode"] for i in range(11)],
-#                    'conm2_shifting': [0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25]
-#                    })
+    # main_folder = "/home/ac5015/pCloudDrive/Imperial/PostDoc/models_POLIMI/"
+    # files = [f"shift_conm2s2_{xi}" for xi in range(11)]
+    # files += [f"shift_panels2_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
+    # files += [f"shift_panels__{xi}" for xi in [0.1, 0.15, 0.2, 0.25]]
 
-# panels_shifting = [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]
-# df2 = pd.DataFrame({'flutter': [results["shift_panels2_%s" %i]["FlutterSpeed"] for i in panels_shifting],
-#                     'flutter_mode': [results["shift_panels2_%s" %i]["FlutterMode"] for i in panels_shifting],
-#                     'panels_shifting': panels_shifting
-#                    })
+    # collector_list = ['sol145']
+    # collector = {ci: None for ci in collector_list}
+    # results = build_flutter(main_folder, files, Modes=range(15), collector=collector)
 
-# panels_shifting = [0.1, 0.15, 0.2, 0.25]
-# df3 = pd.DataFrame({'flutter': [results["shift_panels__%s" %i]["FlutterSpeed"] for i in panels_shifting],
-#                     'flutter_mode': [results["shift_panels__%s" %i]["FlutterMode"] for i in panels_shifting],
-#                     'panels_shifting': panels_shifting
-#                    })
+    # import plotly.express as px
+    # import pandas as pd
 
-# fig = px.line(df2, x='panels_shifting', y='flutter')
-# fig.show()
+    # df = pd.DataFrame({'flutter': [results["shift_conm2s2_%s" %i]["FlutterSpeed"] for i in range(11)],
+    #                    'flutter_mode': [results["shift_conm2s2_%s" %i]["FlutterMode"] for i in range(11)],
+    #                    'conm2_shifting': [0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25]
+    #                    })
 
-# results["shift_panels2_0.1"]['sol145'].obj.plot_vg_vf(modes=range(1, 15))
-# results["shift_panels__0.1"]['sol145'].obj.plot_vg_vf(modes=range(1, 15))
-# plt.show()
+    # panels_shifting = [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]
+    # df2 = pd.DataFrame({'flutter': [results["shift_panels2_%s" %i]["FlutterSpeed"] for i in panels_shifting],
+    #                     'flutter_mode': [results["shift_panels2_%s" %i]["FlutterMode"] for i in panels_shifting],
+    #                     'panels_shifting': panels_shifting
+    #                    })
 
-    
-#model = BDF()
-#model.read_bdf("./models/nastran/")
-#model.read_bdf(original_file_name + ".bdf")
+    # panels_shifting = [0.1, 0.15, 0.2, 0.25]
+    # df3 = pd.DataFrame({'flutter': [results["shift_panels__%s" %i]["FlutterSpeed"] for i in panels_shifting],
+    #                     'flutter_mode': [results["shift_panels__%s" %i]["FlutterMode"] for i in panels_shifting],
+    #                     'panels_shifting': panels_shifting
+    #                    })
 
+    # fig = px.line(df2, x='panels_shifting', y='flutter')
+    # fig.show()
 
-# #f1 = flut.make_flutter_response("./SOL145/polimi-145cam.f06")
-
-# f1[1].plot_root_locus()
-# #f1[1].set_plot_options()
-#f1[1].plot_vg(modes=[1,2,3, 4, 5])
-# #f1[1].plot_vg_vf()
-
-# f2 = flutter.make_flutter_response("/home/acea/runs/polimi/models/SOL145/polimi-145cam_078M.f06",
-#                                    {'eas':'m/s', 'velocity':'m/s', 'density':'kg/m^3', 'altitude':'m',
-#                                     'dynamic_pressure':'Pa'},
-#                                    {'eas':'m/s', 'velocity':'m/s', 'density':'kg/m^3', 'altitude':'m',
-#                                     'dynamic_pressure':'Pa'},
-#                                    )
-
-# #f1 = flut.make_flutter_response("./SOL145/polimi-145cam.f06")
-
-# f1[1].plot_root_locus()
-# #f1[1].set_plot_options()
-# f2[1].plot_vg(modes=[1,2,3, 4, 5])
+    # results["shift_panels2_0.1"]['sol145'].obj.plot_vg_vf(modes=range(1, 15))
+    # results["shift_panels__0.1"]['sol145'].obj.plot_vg_vf(modes=range(1, 15))
+    # plt.show()
 
 
+    #model = BDF()
+    #model.read_bdf("./models/nastran/")
+    #model.read_bdf(original_file_name + ".bdf")
 
-# import plotly.express as px
-# import plotly.graph_objects as go
-# def plot_vg(modes, df_m):
-#     fig = px.line(df_m[0], x='velocity', y='damping')
-#     for mi in modes[1:]:
-#         fig.add_line
-        
-        
+
+    # #f1 = flut.make_flutter_response("./SOL145/polimi-145cam.f06")
+
+    # f1[1].plot_root_locus()
+    # #f1[1].set_plot_options()
+    #f1[1].plot_vg(modes=[1,2,3, 4, 5])
+    # #f1[1].plot_vg_vf()
+
+    # f2 = flutter.make_flutter_response("/home/acea/runs/polimi/models/SOL145/polimi-145cam_078M.f06",
+    #                                    {'eas':'m/s', 'velocity':'m/s', 'density':'kg/m^3', 'altitude':'m',
+    #                                     'dynamic_pressure':'Pa'},
+    #                                    {'eas':'m/s', 'velocity':'m/s', 'density':'kg/m^3', 'altitude':'m',
+    #                                     'dynamic_pressure':'Pa'},
+    #                                    )
+
+    # #f1 = flut.make_flutter_response("./SOL145/polimi-145cam.f06")
+
+    # f1[1].plot_root_locus()
+    # #f1[1].set_plot_options()
+    # f2[1].plot_vg(modes=[1,2,3, 4, 5])
+
+
+
+    # import plotly.express as px
+    # import plotly.graph_objects as go
+    # def plot_vg(modes, df_m):
+    #     fig = px.line(df_m[0], x='velocity', y='damping')
+    #     for mi in modes[1:]:
+    #         fig.add_line
+
+

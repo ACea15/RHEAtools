@@ -1,4 +1,4 @@
-#+TITLE: POLIMI/ONERA SBW Model
+#+TITLE: High Fidelity Flutter with a Parametric Assessment of a SBW configuration
 #+OPTIONS: toc:nil
 #+LATEX_HEADER: \usepackage[margin=1in]{geometry}
 
@@ -12,35 +12,37 @@
 * House keeping :noexport:
 #+begin_src elisp :results none :tangle no :exports none
   (add-to-list 'org-structure-template-alist
-  '("sp" . "src python :session py1"))
+               '("sp" . "src python :session py1"))
   (add-to-list 'org-structure-template-alist
-  '("se" . "src elisp"))
+               '("se" . "src elisp"))
 
   (setq org-confirm-babel-evaluate nil)
   (setq org-latex-pdf-process (list "latexmk -f -pdf -interaction=nonstopmode -output-directory=%o %f"))
   (setq org-image-actual-width nil)
 
-(defun org/get-headline-string-element  (headline backend info)
-  (let ((prop-point (next-property-change 0 headline)))
-    (if prop-point (plist-get (text-properties-at prop-point headline) :parent))))
+  (defun org/get-headline-string-element  (headline backend info)
+    (let ((prop-point (next-property-change 0 headline)))
+      (if prop-point (plist-get (text-properties-at prop-point headline) :parent))))
 
-(defun org/ensure-latex-clearpage (headline backend info)
-  (when (org-export-derived-backend-p backend 'latex)
-    (let ((elmnt (org/get-headline-string-element headline backend info)))
-      (when (member "newpage" (org-element-property :tags elmnt))
-        (concat "\\clearpage\n" headline)))))
+  (defun org/ensure-latex-clearpage (headline backend info)
+    (when (org-export-derived-backend-p backend 'latex)
+      (let ((elmnt (org/get-headline-string-element headline backend info)))
+        (when (member "newpage" (org-element-property :tags elmnt))
+          (concat "\\clearpage\n" headline)))))
 
-(add-to-list 'org-export-filter-headline-functions
-             'org/ensure-latex-clearpage)
-#+end_src
+  (add-to-list 'org-export-filter-headline-functions
+               'org/ensure-latex-clearpage)
 
-#+begin_src emacs-lisp  :session py1 :results none :tangle nil :exports none
   (pyvenv-workon "nastran")
   (require 'org-tempo)
+
 #+end_src
-* Load modules :noexport:
+
+* Load modules                                                     :noexport:
 #+begin_src python :session py1 :results none
   import src.parametric_analysis
+  import inspect
+  import pathlib
   import plotly.express as px
   import pandas as pd
   import matplotlib.pyplot as plt
@@ -66,59 +68,39 @@
 : 'plot.svg'
 
 * Read results :noexport:
-:PROPERTIES:
-:header-args: :eval never-export :exports none
-:END:
 
-#+begin_src python :session py1 :results none
-  main_folder = "/home/ac5015/pCloudDrive/Imperial/PostDoc/models_POLIMI/"
+#+begin_src python :session py1 
+  import sys
+
+  main_folder = '/'.join(([si for si in sys.path if "RHEAtools" in si][0].split('/')[:[si for si
+                                                                                       in sys.path if "RHEAtools" in si][0].split('/').index("RHEAtools")+1]))
+  main_folder += "/data/out/parametric_analysis"
   #main_folder = "/home/acea/pCloudDrive/Imperial/PostDoc/models_POLIMI/"
   #main_folder = "/Users/acea/pCloud Drive/Imperial/PostDoc/models_POLIMI/"
   files = []
-  files += [f"shift_conm2s2_{xi}" for xi in range(11)]
-  files += [f"shift_conm2s4_{xi}" for xi in range(11)]
-  files += [f"shift_conm2sL15_{xi}" for xi in range(11)]
-  files += [f"shift_conm2sL30_{xi}" for xi in range(11)]
-  files += [f"shift_conm2sLM40_{xi}" for xi in range(11)]
-  files += [f"shift_conm2sLM30_{xi}" for xi in range(11)]
-  files += [f"shift_conm2sLM25_{xi}" for xi in range(11)]
-
+  files += [f"shift_conm2s_M15_{xi}" for xi in range(11)]
+  files += [f"shift_conm2s_M25_{xi}" for xi in range(11)]
   # files += [f"shift_panels3_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
-  files += [f"shift_panels4_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
-  # files += [f"shift_panels2_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
-  files += [f"shift_panelsL15_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
-  files += [f"shift_panelsL30_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
-  files += [f"shift_panelsLM30_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
-  #files += [f"shift_panelsLM40_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
-  files += [f"shift_panelsLM25_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
-
-  #files += [f"shift_panelsLM15_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]  
-  files += [f"modify_pbeams_{xi}" for xi in range(5)]
-  #files += [f"modify_pbeamsL15_{xi}" for xi in range(5)]
-  #files += [f"modify_pbeamsL30_{xi}" for xi in range(5)]
-  files += [f"modify_pbeamsLM25_{xi}" for xi in range(5)]
-  #files += [f"modify_pbeamsLM40_{xi}" for xi in range(5)]
-  files += [f"modify_pbeamsLM30_{xi}" for xi in range(5)]
-  files += [f"modify_pbeamsLM15_{xi}" for xi in range(5)]
+  files += [f"shift_panels_M15_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
+  files += [f"shift_panels_M25_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
+  ######
+  files += [f"CHORD_EXTENSION_M15_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
+  files += [f"CHORD_EXTENSION_M25_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
 
   collector_list = ['sol145']
   collector = {ci: None for ci in collector_list}
   results = src.parametric_analysis.build_flutter(main_folder, files, Modes=range(15), collector=collector)
 
-  parametric_vars = {f"shift_conm2s{i}": [0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25] for i in [2, 4]}
-  parametric_vars.update({f"shift_conm2sL{i}": [0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25] for i in [15, 30]})
-  parametric_vars.update({f"shift_conm2sLM{i}": [0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25] for i in [30, 40, 25]})
-  parametric_vars.update({f"shift_panels4": [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]})
-  parametric_vars.update({f"shift_panelsL{i}": [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25] for i in [15, 30]})
-  parametric_vars.update({f"shift_panelsLM{i}": [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25] for i in [30, 25]})
-  #parametric_vars.update({f"modify_pbeams": range(5)})
-  parametric_vars.update({f"modify_pbeamsLM{i}": range(5) for i in [15, 30, 25]})
-  #parametric_vars.update({f"modify_pbeamsLM30": range(5)})
+  parametric_vars = {f"shift_conm2s_M{i}": [0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25] for i in [15, 25]}
+  parametric_vars.update({f"shift_panels_M{i}": [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25] for i in [15, 25]})
+  parametric_vars.update({f"CHORD_EXTENSION_M{i}": [0.7, 0.85, 1., 1.1, 1.2, 1.3] for i in [15, 25]})
 
   results_df = src.parametric_analysis.build_results_df(files,
-                                                   parametric_vars,
-                                                   results)
+                                                        parametric_vars,
+                                                        results)
 #+end_src
+
+#+RESULTS:
 
 * Structural and aerodynamic model 
 - Framework in place to map data between structural and aerodynamic models
