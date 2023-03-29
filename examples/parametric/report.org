@@ -50,7 +50,7 @@
 #+end_src
 * Boilerplate src :noexport:
 #+name: pd2org
-#+begin_src python :var df="df" :exports none
+#+begin_src python :session py1 :var df="df" :exports none
   return f"return tabulate({df}, headers={df}.columns, tablefmt='orgtbl')"
 #+end_src
 
@@ -69,7 +69,7 @@
 
 * Read results :noexport:
 
-#+begin_src python :session py1 
+#+begin_src python :session py1  :results value
   import sys
 
   main_folder = '/'.join(([si for si in sys.path if "RHEAtools" in si][0].split('/')[:[si for si
@@ -80,27 +80,222 @@
   files = []
   files += [f"shift_conm2s_M15_{xi}" for xi in range(11)]
   files += [f"shift_conm2s_M25_{xi}" for xi in range(11)]
+  files += [f"shift_conm2s_LM15_{xi}" for xi in range(11)]
+  files += [f"shift_conm2s_LM25_{xi}" for xi in range(11)]
+  #files += [f"shift_conm2s_oldM8_{xi}" for xi in range(11)]
+  files += [f"shift_conm2s_oldM15_{xi}" for xi in range(11)]
+  files += [f"shift_conm2s_oldM25_{xi}" for xi in range(11)]
+
   # files += [f"shift_panels3_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
   files += [f"shift_panels_M15_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
   files += [f"shift_panels_M25_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
+  files += [f"shift_panels_LM15_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
+  files += [f"shift_panels_LM25_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
+  #files += [f"shift_panels_oldM8_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
+  files += [f"shift_panels_oldM15_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
+  files += [f"shift_panels_oldM25_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
+
   ######
   files += [f"CHORD_EXTENSION_M15_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
   files += [f"CHORD_EXTENSION_M25_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
+  files += [f"CHORD_EXTENSION_LM15_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
+  files += [f"CHORD_EXTENSION_LM25_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
+  #files += [f"CHORD_EXTENSION_oldM8_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
+  files += [f"CHORD_EXTENSION_oldM15_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
+  files += [f"CHORD_EXTENSION_oldM25_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
 
   collector_list = ['sol145']
   collector = {ci: None for ci in collector_list}
   results = src.parametric_analysis.build_flutter(main_folder, files, Modes=range(15), collector=collector)
 
   parametric_vars = {f"shift_conm2s_M{i}": [0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25] for i in [15, 25]}
+  parametric_vars = {f"shift_conm2s_oldM{i}": [0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25] for i in [15, 25]}
   parametric_vars.update({f"shift_panels_M{i}": [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25] for i in [15, 25]})
+  parametric_vars.update({f"shift_panels_oldM{i}": [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25] for i in [15, 25]})
   parametric_vars.update({f"CHORD_EXTENSION_M{i}": [0.7, 0.85, 1., 1.1, 1.2, 1.3] for i in [15, 25]})
+  parametric_vars.update({f"shift_conm2s_LM{i}": [0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25] for i in [15, 25]})
+  parametric_vars.update({f"shift_panels_LM{i}": [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25] for i in [15, 25]})
+  parametric_vars.update({f"CHORD_EXTENSION_LM{i}": [0.7, 0.85, 1., 1.1, 1.2, 1.3] for i in [15, 25]})
+  parametric_vars.update({f"CHORD_EXTENSION_oldM{i}": [0.7, 0.85, 1., 1.1, 1.2, 1.3] for i in [25]})
 
   results_df = src.parametric_analysis.build_results_df(files,
                                                         parametric_vars,
                                                         results)
+  "Data read!"
 #+end_src
 
 #+RESULTS:
+: Data read!
+
+* Make postprocessing                                              :noexport:
+:PROPERTIES:
+:header-args: :var name=(org-element-property :name (org-element-context)) :session py1
+:END:
+** Flutter parametric comparisons
+#+NAME: FLUTTER-CHORD_EXTENSION_M15 
+#+begin_src python  :results raw :exports results
+  df_ = results_df[name.split("-")[-1]]
+  df_ = df_.rename(columns={"xlabel": "factor"})
+  #df_["factor"] = [0.75, 0.9, 1., 1.1, 1.2]
+  tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
+#+end_src
+
+#+RESULTS: FLUTTER-CHORD_EXTENSION_M15
+| flutter | flutter_mode | factor |
+|---------+--------------+--------|
+| 193.095 |            4 |    0.7 |
+| 145.105 |           11 |   0.85 |
+| 153.953 |            2 |      1 |
+| 171.316 |            2 |    1.1 |
+| 152.789 |           11 |    1.2 |
+| 141.428 |           11 |    1.3 |
+
+
+#+NAME: FLUTTER-CHORD_EXTENSION_M25 
+#+begin_src python  :results raw :exports results
+  df_ = results_df[name.split("-")[-1]]
+  df_ = df_.rename(columns={"xlabel": "factor"})
+  #df_["factor"] = [0.75, 0.9, 1., 1.1, 1.2]
+  tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
+#+end_src
+
+#+RESULTS: FLUTTER-CHORD_EXTENSION_M25
+| flutter | flutter_mode | factor |
+|---------+--------------+--------|
+| 194.297 |            4 |    0.7 |
+| 155.419 |            4 |   0.85 |
+| 159.353 |            2 |      1 |
+| 172.804 |           11 |    1.1 |
+| 150.913 |           11 |    1.2 |
+| 141.108 |           11 |    1.3 |
+
+#+NAME: FLUTTER-CHORD_EXTENSION_oldM25 
+#+begin_src python  :results raw :exports results
+  df_ = results_df[name.split("-")[-1]]
+  df_ = df_.rename(columns={"xlabel": "factor"})
+  #df_["factor"] = [0.75, 0.9, 1., 1.1, 1.2]
+  tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
+#+end_src
+
+#+RESULTS: FLUTTER-CHORD_EXTENSION_oldM25
+| flutter | flutter_mode | factor |
+|---------+--------------+--------|
+| 159.745 |            4 |    0.7 |
+|   152.8 |            4 |   0.85 |
+| 170.437 |            2 |      1 |
+| 202.985 |            2 |    1.1 |
+| 186.957 |           11 |    1.2 |
+| 179.594 |           11 |    1.3 |
+
+
+#+NAME: FLUTTER-CHORD_EXTENSION_LM15 
+#+begin_src python  :results raw :exports results
+  df_ = results_df[name.split("-")[-1]]
+  df_ = df_.rename(columns={"xlabel": "factor"})
+  #df_["factor"] = [0.75, 0.9, 1., 1.1, 1.2]
+  tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
+#+end_src
+
+#+RESULTS: FLUTTER-CHORD_EXTENSION_LM15
+| flutter | flutter_mode | factor |
+|---------+--------------+--------|
+| 193.095 |            4 |    0.7 |
+| 145.105 |           11 |   0.85 |
+| 153.953 |            2 |      1 |
+| 171.316 |            2 |    1.1 |
+| 152.789 |           11 |    1.2 |
+| 141.428 |           11 |    1.3 |
+
+#+NAME: FLUTTER-shift_conm2s_M15 
+#+begin_src python  :results raw :exports results
+  df_ = results_df[name.split("-")[-1]]
+  df_ = df_.rename(columns={"xlabel": "factor"})
+  #df_["factor"] = [0.75, 0.9, 1., 1.1, 1.2]
+  tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
+#+end_src
+
+#+RESULTS: FLUTTER-shift_conm2s_M15
+| flutter | flutter_mode | factor |
+|---------+--------------+--------|
+| 153.953 |            2 |      0 |
+| 150.495 |            2 |  -0.05 |
+|  147.43 |            2 |   -0.1 |
+| 144.703 |            2 |  -0.15 |
+| 142.252 |            2 |   -0.2 |
+| 140.015 |            2 |  -0.25 |
+| 157.956 |            2 |   0.05 |
+| 162.615 |            2 |    0.1 |
+| 158.712 |           14 |   0.15 |
+| 153.019 |           14 |    0.2 |
+|   148.6 |           14 |   0.25 |
+
+#+NAME: FLUTTER-CHORD_EXTENSION_LM25 
+#+begin_src python  :results raw :exports results
+  df_ = results_df[name.split("-")[-1]]
+  df_ = df_.rename(columns={"xlabel": "factor"})
+  #df_["factor"] = [0.75, 0.9, 1., 1.1, 1.2]
+  tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
+#+end_src
+
+#+RESULTS: FLUTTER-CHORD_EXTENSION_LM25
+| flutter | flutter_mode | factor |
+|---------+--------------+--------|
+| 194.297 |            4 |    0.7 |
+| 155.419 |            4 |   0.85 |
+| 159.353 |            2 |      1 |
+| 172.804 |           11 |    1.1 |
+| 150.913 |           11 |    1.2 |
+| 141.108 |           11 |    1.3 |
+
+** VgVf plots
+#+NAME: VgVf-CHORD_EXTENSION_M15_0
+#+begin_src python :session py1 :results value file  :exports results 
+  fig1 = f"./img/{name}.png"
+  results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 15),
+                                                        ylim_damping=[-0.1, 0.1],
+                                                        ylim_freq=[0.1, 5],
+                                                        legend=True)
+  #<<savefig(figname=fig1)>>
+  plt.savefig(fig1)
+  #plt.close()
+  fig1
+#+end_src
+
+#+RESULTS: VgVf-CHORD_EXTENSION_M15_0
+[[file:./img/VgVf-CHORD_EXTENSION_M15_0.png]]
+
+#+NAME: VgVf-CHORD_EXTENSION_M25_0
+#+begin_src python :session py1 :results value file  :exports results 
+  fig1 = f"./img/{name}.png"
+  results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 15),
+                                                         ylim_damping=[-0.1, 0.1],
+                                                         ylim_freq=[0.1, 5],
+                                                         legend=True)
+  #<<savefig(figname=fig1)>>
+  plt.savefig(fig1)
+  #plt.close()
+  fig1
+#+end_src
+
+#+NAME: VgVf-CHORD_EXTENSION_LM25_0
+#+begin_src python :session py1 :results value file  :exports results 
+  fig1 = f"./img/{name}.png"
+  results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 15),
+                                                         ylim_damping=[-0.1, 0.1],
+                                                         ylim_freq=[0.1, 5],
+                                                         legend=True)
+  #<<savefig(figname=fig1)>>
+  plt.savefig(fig1)
+  #plt.close()
+  fig1
+#+end_src
+
+#+RESULTS: VgVf-CHORD_EXTENSION_LM25_0
+[[file:./img/VgVf-CHORD_EXTENSION_LM25_0.png]]
+
+
+
+* Introduction
 
 * Structural and aerodynamic model 
 - Framework in place to map data between structural and aerodynamic models
@@ -159,7 +354,7 @@ We deform the initial SU2 mesh with the modal shapes data previously described; 
 #+ATTR_ORG: :width 100
 [[./img/ONERA_M1.png]]
 
-* Baseline Flutter analysis (Nastran-based)
+* Baseline Flutter analysis 
 
 - Cruise analysis ($U_\infty = 252.8 m/s$ $M_\infty = 0.79$, $Altitude = 7000 m$)
 - Flutter speed:  \approx 171 m/s (33% below cruise speed)
@@ -209,32 +404,33 @@ The following Vg-Vf and root-locus plots were produced for the base-line model:
 [[file:./img/baseline_flutter_rootlocus.png]]
 
 \newpage
-* Parametric analysis
+* Parametric assessment
 ** Masses shifting
 
 In the next table the variation of flutter is shown as we move the masses on the strut along the chord.  
-#+NAME: SHIFT_CONM2s
+#+NAME: RESULTS_SHIFT_CONM2s
 #+begin_src python :session py1 :results raw :exports results
-  df_ = results_df['shift_conm2sLM25']
+  df_ = results_df['shift_conm2s_M25']
   df_ = df_.rename(columns={"xlabel": "%Chord"})
-  tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
+  tabulate(df_, headers=df_.columns, showindex=False, tablefmt='orgtbl')
 #+end_src
 
 #+ATTR_LATEX: :width 0.7\textwidth :environment longtable :caption  
-  #+RESULTS: SHIFT_CONM2s
-  | flutter | flutter_mode | %Chord |
-  |---------+--------------+--------|
-  | 170.437 |            2 |      0 |
-  | 162.794 |            2 |  -0.05 |
-  | 156.675 |            2 |   -0.1 |
-  | 151.591 |            2 |  -0.15 |
-  | 147.201 |            2 |   -0.2 |
-  | 143.348 |            2 |  -0.25 |
-  | 180.694 |            2 |   0.05 |
-  | 197.301 |            2 |    0.1 |
-  | 243.256 |           11 |   0.15 |
-  | 236.596 |           13 |    0.2 |
-  |  210.99 |           13 |   0.25 |
+#+RESULTS: RESULTS_SHIFT_CONM2s
+| flutter | flutter_mode | %Chord |
+|---------+--------------+--------|
+| 159.353 |            2 |      0 |
+| 154.549 |            2 |  -0.05 |
+| 150.493 |            2 |   -0.1 |
+| 146.957 |            2 |  -0.15 |
+| 143.836 |            2 |   -0.2 |
+| 141.039 |            2 |  -0.25 |
+| 165.142 |            2 |   0.05 |
+| 172.505 |            2 |    0.1 |
+| 164.196 |           14 |   0.15 |
+| 157.124 |           14 |    0.2 |
+|  151.55 |           14 |   0.25 |
+
 
 A 0.15 shift of the masses changes the flutter mode thereby increasing the flutter speed to nearly the cruise speed.
 #+NAME: SHIFT_CONM2_flutter_vgvf
@@ -260,7 +456,7 @@ A 0.15 shift of the masses changes the flutter mode thereby increasing the flutt
 In the next table the variation of flutter is shown as we move the strut aerodynamic panels chordwise.   
 #+NAME: SHIFT_PANELS
 #+begin_src python :session py1 :results raw :exports results
-  df_ = results_df['shift_panelsLM25']
+  df_ = results_df['shift_panels_M25']
   df_ = df_.rename(columns={"xlabel": "%Chord"})
   tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
 #+end_src
@@ -268,15 +464,15 @@ In the next table the variation of flutter is shown as we move the strut aerodyn
 #+RESULTS: SHIFT_PANELS
 | flutter | flutter_mode | %Chord |
 |---------+--------------+--------|
-| 175.836 |            2 |  -0.25 |
-| 174.666 |            2 |   -0.2 |
-| 173.526 |            2 |  -0.15 |
-| 172.444 |            2 |   -0.1 |
-| 170.437 |            2 |      0 |
-| 168.699 |            2 |    0.1 |
-| 167.903 |            2 |   0.15 |
-| 167.087 |            2 |    0.2 |
-| 166.464 |            2 |   0.25 |
+| 160.822 |            3 |  -0.25 |
+| 161.236 |            3 |   -0.2 |
+| 160.807 |            2 |  -0.15 |
+| 160.316 |            2 |   -0.1 |
+| 159.353 |            2 |      0 |
+| 158.443 |            2 |    0.1 |
+| 158.019 |            2 |   0.15 |
+| 157.622 |            2 |    0.2 |
+| 157.246 |            2 |   0.25 |
 
 When shifted -0.25% the next Vg-Vf graph is obtained,
 #+NAME: SHIFT_PANELS_flutter025_vgvf
@@ -312,39 +508,46 @@ while when it positive 0.25% we get the following,
 #+RESULTS: SHIFT_PANELS_flutter-025_vgvf
 [[file:./img/SHIFT_PANELS_flutter-025_vgvf.png]]
 
+** Strut chord extension
+The last varied parameter is the area of the beam of the strut component. In the next table the variation of flutter is shown as it is multiplied by a factor.
 
-** Beam area 
-The last varied parameter is the area of the beam of the strut component. In the next table the variation of flutter is shown as it is multiplied by a factor. 
+#+RESULTS: VgVf-CHORD_EXTENSION_M25_0
+[[file:./img/VgVf-CHORD_EXTENSION_M25_0.png]]
+
 #+NAME: beam_area
 #+begin_src python :session py1 :results raw :exports results
-  df_ = results_df['modify_pbeamsLM25']
+  df_ = results_df['CHORD_EXTENSION_M15']
   df_ = df_.rename(columns={"xlabel": "factor"})
-  df_["factor"] = [0.75, 0.9, 1., 1.1, 1.2]
+  #df_["factor"] = [0.75, 0.9, 1., 1.1, 1.2]
   tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
 #+end_src
 
 #+RESULTS: beam_area
 | flutter | flutter_mode | factor |
 |---------+--------------+--------|
-| 191.023 |            2 |   0.75 |
-| 176.216 |            2 |    0.9 |
-| 170.437 |            2 |      1 |
-| 166.224 |            2 |    1.1 |
-| 163.114 |            2 |    1.2 |
+| 193.095 |            4 |    0.7 |
+| 145.105 |           11 |   0.85 |
+| 153.953 |            2 |      1 |
+| 171.316 |            2 |    1.1 |
+| 152.789 |           11 |    1.2 |
+| 141.428 |           11 |    1.3 |
 
 As before we plot the VG-Vf graph at the extremes of this range, at 0.75:
 #+NAME: beam_area_flutter075_vgvf
 #+begin_src python :session py1 :results value file  :exports results :var name=(org-element-property :name (org-element-context))
   fig1 = f"./img/{name}.png"
-  results["modify_pbeamsLM25_0"]['sol145'].obj.plot_vg_vf(modes=range(1, 15),
-                                                         ylim_damping=[-0.04, 0.03],
-                                                         ylim_freq=[0.75, 5],
+  results["CHORD_EXTENSION_M25_0"]['sol145'].obj.plot_vg_vf(modes=range(1, 15),
+                                                         ylim_damping=[-0.1, 0.1],
+                                                         ylim_freq=[0.1, 5],
                                                          legend=True)
   #<<savefig(figname=fig1)>>
   plt.savefig(fig1)
-  plt.close()
+  #plt.close()
   fig1
 #+end_src
+
+#+RESULTS: beam_area_flutter075_vgvf
+[[file:./img/beam_area_flutter075_vgvf.png]]
 
 and at 1.2:
 #+NAME: beam_area_flutter1point2_vgvf
@@ -360,13 +563,12 @@ and at 1.2:
   fig1
 #+end_src
 
-* Further (possible) steps
+* Further work
 - More investigation into the flutter results. 
 - Couple the parametric tool with GEMSEO to search for a sensible combination that gets the flutter speed above the flight-envelope. 
 - Plug the model into SHARPy to assess geometrical nonlinear effects.
 - Comparisons with high-fidelity flutter calculations in SU2, i.e. transonic effects.
   
-
 * COMMENT Calculator :noexport:
 
 #+BEGIN_SRC calc
