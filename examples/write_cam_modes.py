@@ -20,6 +20,7 @@ parser.add_argument("-s","--scaling", nargs='?', const=1., type=float)
 parser.add_argument("-f","--filtering", nargs='?', const=None, type=str)
 parser.add_argument("-d","--dir2save", nargs='?', const=None, type=str)
 parser.add_argument("-a","--markers_file", nargs='?', const=None, type=str)
+parser.add_argument("-n","--nastran_file", nargs='?', const=None, type=str)
 
 args = parser.parse_args()
 
@@ -46,6 +47,12 @@ if args.markers_file is None:
 else:
     #SAVE_DIR0 = f"./data/out/ONERA_fac{MODES_SCALING}/{args.dir2save}/"
     MARKERS_FILE = f"./data/in/{args.markers_file}"
+if args.nastran_file is None:
+    NASTRAN_FILE = "./data/in/SOL103/polimi-103cam.bdf"
+    NASTRAN_FILE_OP2 = "./data/in/SOL103/polimi-103cam.op2"
+else:
+    NASTRAN_FILE = f"./data/in/{args.nastran_file}.bdf"
+    NASTRAN_FILE_OP2 = f"./data/in/{args.nastran_file}.op2"
 
 print("Modes scaling: %s" %MODES_SCALING)
 print("Modes : %s" %NUM_MODES)
@@ -56,11 +63,11 @@ print("MARKERS_FILE : %s" %MARKERS_FILE)
 ##################################################
 model = BDF()
 #model.read_bdf("./models/nastran/")
-model.read_bdf("./data/in/SOL103/polimi-103cam.bdf")
+model.read_bdf(NASTRAN_FILE)
 
 print(model.get_bdf_stats())
 
-file_name  = "./data/in/SOL103/polimi-103cam.op2"
+file_name  = NASTRAN_FILE_OP2
 op2 = OP2()
 op2.read_op2(file_name)
 eig1=op2.eigenvectors[1]

@@ -13,21 +13,22 @@
   MESH_FILE = "1901_inv.su2" #"1901_inv.su2"
   MARKERS_FILE = "sbw_1901.txt" #"sbw_1901.txt" # sbw_1901.txt
   NUM_MODES = 5
-  SCALING = 1.
+  SCALING = 0.1
   MACH_NUMBER = 0.75 #0.75#0.735
-  FREESTREAM_TEMPERATURE= 216.66 #216.66#222.773
-  FREESTREAM_PRESSURE= 18752.378694043327 #18752.378694043327#26201.65
+  FREESTREAM_TEMPERATURE= 216.66#222.773
+  FREESTREAM_PRESSURE= 18752.378694043327#26201.65
   R = 287.058
   gamma = 1.4
   FREESTREAM_VELOCITY= MACH_NUMBER * (FREESTREAM_TEMPERATURE * gamma * R) ** 0.5
-  FREESTREAM_DENSITY = 0.4 #FREESTREAM_PRESSURE / (FREESTREAM_TEMPERATURE * R)
+  FREESTREAM_DENSITY = FREESTREAM_PRESSURE / (FREESTREAM_TEMPERATURE * R)
 
   ROOT_WING_CHORD = 3.
   TIP_WING_CHORD= 0.7
   WING_SPAN= 28.
   b = ROOT_WING_CHORD/2
 
-  REDUCED_FREQ = (1e-4, 0.1, 0.3, 0.5)
+  REDUCED_FREQ = (1e-7, 1e-5, 1e-3, 0.01)
+  REDUCED_FREQ = (0.03, 0.05, 0.07, 0.1)
   OMEGA_AERO = (6.0947, 21.0989, 25.0699, 40., 82.9318)
   #OMEGA_MODE = tuple([FREESTREAM_VELOCITY * ki / b  for ki in REDUCED_FREQ for i in range(NUM_MODES)])
   OMEGA_MODE = tuple([FREESTREAM_VELOCITY * ki / b for ki in REDUCED_FREQ])
@@ -43,7 +44,7 @@
 
   WING_VOL_TRUN_CONE = 1.1
   rho_mat = 400.
-  Omega = OMEGA_HB[0]
+  Omega = 6.0947#OMEGA_HB[0]
   # m
   SCALE_PARAM = 1. / (WING_VOL_TRUN_CONE * rho_mat)
 
@@ -55,12 +56,12 @@
   # %% (TgammaR) = ((vf*vf)*(b*b)*(w_alpha*w_alpha)*mu) / (Mach*Mach)
   FLUTTER_SPEED_INDEX = MACH_NUMBER * ((FREESTREAM_TEMPERATURE * gamma * R) ** 0.5 /
                          ((b * Omega) * AIRFOIL_MASS_RATIO**0.5))
-
+  #FLUTTER_SPEED_INDEX = 0.00227
   eval(output)
 #+end_src
 
 #+RESULTS: python_parameters
-| 1.4753946996651433e-05 | 1.4753946996651433e-05 | 1.4753946996651433e-05 | 1.4753946996651433e-05 | 1.4753946996651433e-05 | 14.753946996651436 | 14.753946996651436 | 14.753946996651436 | 14.753946996651436 | 14.753946996651436 | 44.2618409899543 | 44.2618409899543 | 44.2618409899543 | 44.2618409899543 | 44.2618409899543 | 73.76973498325718 | 73.76973498325718 | 73.76973498325718 | 73.76973498325718 | 73.76973498325718 |
+| 4.426184098995431 | 7.376973498325718 | 10.327762897656006 | 14.753946996651436 |
 
 #+NAME: python_parameters2
 #+begin_src python :session py1 :var ki=1 output="HB_PERIODX" :noweb yes
@@ -73,7 +74,7 @@
 #+end_src
 
 #+RESULTS: python_parameters2
-: 2.5132741228718345
+: 0.05678196086426339
 
 
 #+begin_src bash :results output :noweb yes
@@ -100,7 +101,6 @@
 : #####
 : 1 2 3
 
-
 ** MUST BE RUN TO SET ENV VARIABLES and file structure
 #+begin_src elisp  :noweb yes :results output
   (setq NUM_MODES (number-to-string <<python_parameters(output="NUM_MODES")>>))
@@ -108,7 +108,10 @@
   (print (concat "Number of Modes:" NUM_MODES))
   (print (concat "Scaling:" SCALING))
   (setq output_label "mesh1901")
-  (setq local_root (concat default-directory ".."))
+  ;;(setq local_root (string-trim-right default-directory "/examples/"))
+  ;;(setq local_root (replace-regexp-in-string "~" "$HOME" local_root))
+  (setq local_root "/home/ac5015/programs/RHEAtools")
+  ;;(setq local_root (replace-regexp-in-string ".." "" local_root))
   (setq local_dir "/data/out")
   (setq remote_dir "/runs")
   (setq onera_dir (concat "/ONERA_fac" SCALING))
@@ -128,7 +131,7 @@
 : 
 : "Number of Modes:5"
 : 
-: "Scaling:1.0"
+: "Scaling:0.1"
 : 
 : "ENV VARIABLES SET!!"
 : 
@@ -148,10 +151,10 @@
 #+RESULTS: ModalShapes
 #+begin_example
 /home/ac5015/programs/RHEAtools/examples/..
-Modes scaling: 1.0
+Modes scaling: 0.1
 Modes : [0, 1, 2, 3, 4]
-Filtering : <function filter_sigmoid at 0x7fdd80a9feb0>
-Directory : /home/ac5015/programs/RHEAtools/examples/../data/out/ONERA_fac1.0/MeshDeformation_mesh1901
+Filtering : <function filter_sigmoid at 0x7f5970f6feb0>
+Directory : /home/ac5015/programs/RHEAtools/examples/../data/out/ONERA_fac0.1/MeshDeformation_mesh1901
 MARKERS_FILE : ./data/in/sbw_1901.txt
 DEBUG:   bdf.py:1001                  ---starting BDF.read_bdf of ./data/in/SOL103/polimi-103cam.bdf---
 DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOL103/polimi-103cam.bdf'
@@ -312,10 +315,10 @@ times = [  1.   2.   3.   4.   5.   6.   7.   8.   9.  10.  11.  12.  13.  14.
   DEFORM_LINEAR_SOLVER_PREC= ILU
   %
   % Number of smoothing iterations for mesh deformation
-  DEFORM_LINEAR_SOLVER_ITER= 2500
+  DEFORM_LINEAR_SOLVER_ITER= 20
   %
   % Number of nonlinear deformation iterations (surface deformation increments)
-  DEFORM_NONLINEAR_ITER= 4
+  DEFORM_NONLINEAR_ITER= 1
   %
   % Minimum residual criteria for the linear solver convergence of grid deformation
   DEFORM_LINEAR_SOLVER_ERROR= 4E-16
@@ -616,12 +619,13 @@ Comment out this and uncomment the ones below for interactive config
   AOA= 0.0
   FREESTREAM_TEMPERATURE= <<python_parameters(output="FREESTREAM_TEMPERATURE")>>
   FREESTREAM_PRESSURE= <<python_parameters(output="FREESTREAM_PRESSURE")>>
+  FREESTREAM_DENSITY= <<python_parameters(output="FREESTREAM_DENSITY")>>
   MACH_NUMBER= <<python_parameters(output="MACH_NUMBER")>>
   SIDESLIP_ANGLE= 0.0
   % ?
   SYSTEM_MEASUREMENTS= SI
-  FREESTREAM_OPTION= TEMPERATURE_FS
-  INIT_OPTION= TD_CONDITIONS
+  %FREESTREAM_OPTION= TEMPERATURE_FS
+  %INIT_OPTION= TD_CONDITIONS
 #+end_src
 *** Reference values
 #+NAME: steady_modes_reference
@@ -665,7 +669,7 @@ MARKER_MONITORING= ( wing, strut, fuselage, wing_fairing, strut_fairing )
   CFL_ADAPT= NO
   CFL_ADAPT_PARAM= ( 1.5, 0.5, 1.0, 100.0 )
   RK_ALPHA_COEFF= ( 0.66667, 0.66667, 1.000000 )
-  ITER= 20000
+  ITER= 700
   LINEAR_SOLVER= FGMRES
   LINEAR_SOLVER_ERROR= 1E-6
   LINEAR_SOLVER_PREC= ILU
@@ -690,7 +694,7 @@ MARKER_MONITORING= ( wing, strut, fuselage, wing_fairing, strut_fairing )
   %
   %
   %CONV_CRITERIA= RESIDUAL
-  CONV_RESIDUAL_MINVAL= -10
+  CONV_RESIDUAL_MINVAL= -5
   CONV_STARTITER= 10
   CONV_CAUCHY_ELEMS= 100 %300
   CONV_CAUCHY_EPS= 1E-9 %8E-6
@@ -871,8 +875,8 @@ MARKER_MONITORING= ( wing, strut, fuselage, wing_fairing, strut_fairing )
   OMEGA_AERO= <<python_parameters(output="OMEGA_AERO")>>
   %
   OMEGA_MODE= <<python_parameters(output="OMEGA_MODE")>>
-  AMPL_MODE = <<python_parameters(output="AMPL_MODE")>>
-
+  AMPL_MODE= <<python_parameters(output="AMPL_MODE")>>
+  PITCH_NATURAL_FREQUENCY=<<python_parameters(output="Omega")>>
 #+end_src
 
 *** Reference values
@@ -948,9 +952,9 @@ MARKER_MONITORING= ( wing, strut, fuselage, wing_fairing, strut_fairing )
 #+end_src
 
 ** File for HPC submission
-#+begin_src org :tangle (print (concat HB_tangle "/run.pbs")) :mkdirp yes :shebang   #!/usr/bin/zsh
-  #PBS -l walltime=40:59:00
-  #PBS -l select=1:ncpus=1:mem=99gb
+#+begin_src org :tangle (concat HB_tangle "/run.pbs") :mkdirp yes :shebang   #!/usr/bin/zsh
+  #PBS -l walltime=24:59:00
+  #PBS -l select=1:ncpus=1:mem=100gb  
   ###:mpiprocs=16
   ###PBS -l select=1:ncpus=8:mem=16gb
 
@@ -964,7 +968,7 @@ MARKER_MONITORING= ( wing, strut, fuselage, wing_fairing, strut_fairing )
   export PYTHONPATH=$PYTHONPATH:$SU2_RUN
 
   cd $PBS_O_WORKDIR
-  SU2_DEF euler_onera.cfg > log.txt 2> err.txt
+  SU2_CFD euler_onera.cfg > log.txt 2> err.txt
   ##cp -r ./* $PBS_O_WORKDIR
 #+end_src
 ** Copy files to HPC and run steady
@@ -1110,25 +1114,31 @@ Submitting Mode 4
 #+RESULTS: Orchestrator_SteadyModes
 #+begin_example
 Current directory:
-/home/ac5015/programs/RHEAtools/data/out/ONERA_fac20.0/SteadyModes_m1901b
+/home/ac5015/programs/RHEAtools/data/out/ONERA_fac1.0/SteadyModes_mesh1901
 
 RUNNING hpc.sh
 Running Steady on reference config
+7304545.pbs
 Creating and copying config file for Mode 0
 Copying .cfg
 Copying run.pbs
+7304547.pbs
 Creating and copying config file for Mode 1
 Copying .cfg
 Copying run.pbs
+7304549.pbs
 Creating and copying config file for Mode 2
 Copying .cfg
 Copying run.pbs
+7304551.pbs
 Creating and copying config file for Mode 3
 Copying .cfg
 Copying run.pbs
+7304552.pbs
 Creating and copying config file for Mode 4
 Copying .cfg
 Copying run.pbs
+7304553.pbs
 #+end_example
 
 *** Recover paraview
@@ -1144,38 +1154,21 @@ Copying run.pbs
 ** HB run 
 *** Run Steady simulations
 #+NAME: Orchestrator_HB
-#+header: 
-#+begin_src bash :dir (print HB_tangle) :shebang #!/usr/bin/zsh :results output 
+#+begin_src bash :dir (print HB_tangle) :shebang #!/usr/bin/zsh :results output
   echo Current directory:
   pwd
   echo ####################
   echo RUNNING hpc.sh
-  zsh hpc.sh
+  #zsh hpc.sh
 #+end_src
 
-#+RESULTS: Orchestrator_SteadyModes
-#+begin_example
-Current directory:
-/home/ac5015/programs/RHEAtools/data/out/ONERA_fac20.0/SteadyModes_m1901b
+#+RESULTS: Orchestrator_HB
+: Current directory:
+: /home/ac5015/programs/RHEAtools/data/out/ONERA_fac0.1/HB_mesh1901
+: 
+: RUNNING hpc.sh
 
-RUNNING hpc.sh
-Running Steady on reference config
-Creating and copying config file for Mode 0
-Copying .cfg
-Copying run.pbs
-Creating and copying config file for Mode 1
-Copying .cfg
-Copying run.pbs
-Creating and copying config file for Mode 2
-Copying .cfg
-Copying run.pbs
-Creating and copying config file for Mode 3
-Copying .cfg
-Copying run.pbs
-Creating and copying config file for Mode 4
-Copying .cfg
-Copying run.pbs
-#+end_example
+
 *** Recover paraview
 #+NAME: Orchestrator_RecoverSteady
 #+begin_src bash :dir (print HB_tangle) :shebang #!/usr/bin/zsh :results output 
