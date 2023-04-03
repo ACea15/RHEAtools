@@ -21,7 +21,7 @@ def shift_conm2s(model, chord, shift_chord, conm2_ids, conm2_symm):
 
     for k, v in conm2_symm.items():
         model.masses[conm2_ids[k]].X += np.array([chord * shift_chord[k], 0., 0.])
-        model.masses[conm2_ids[v]].X += np.array([chord * shift_chord[k], 0., 0.])
+        #model.masses[conm2_ids[v]].X += np.array([chord * shift_chord[k], 0., 0.])
 
 def modify_pbeams(model, pbeam_ids, Afactor):
     for k in pbeam_ids:
@@ -308,16 +308,17 @@ if (__name__ == "__main__"):
     ###########################################################
     # Running
     ###########################################################
-    VALIDATE = True
-    STRUT_SHIFTING_ANALYSIS = True
-    CONM2_SHIFTING = True
+    VALIDATE = False
+    STRUT_SHIFTING_ANALYSIS = False
+    CONM2_SHIFTING = False
     PBEAM = False
     RUNNING = True
-    RUN_INIT = 1
-    RUN_GAFs = True
-    CHORD_EXTENSION = True
-    NUM_MODES = 8
+    RUN_INIT = 0
+    RUN_GAFs = 1
+    CHORD_EXTENSION = 0
+    NUM_MODES = 10
     LABEL = "oldM"
+    PARAMETRIC_FOLDER = "parametric_analysis_wing"
     __file__ = inspect.getfile(lambda: None)
     file_path = pathlib.Path(__file__)
     repo_path = file_path.parents[1]
@@ -325,6 +326,10 @@ if (__name__ == "__main__"):
     original_file_name103  =  repo_path / "data/in/SOL103/polimi-103cam.bdf"
     original_file_nameGAFs  =  repo_path / "data/in/SOLGAFs/polimi-145cam_078M.bdf"
     original_file_nameGAFs103 =  repo_path / "data/in/SOLGAFs/polimi-103cam.bdf"
+    original_file_name  =  repo_path / "data/in/SOL145tailless/polimi-145cam_078M.bdf"
+    original_file_name103  =  repo_path / "data/in/SOL103tailless/polimi-103cam.bdf"
+    original_file_nameGAFs  =  repo_path / "data/in/SOLGAFstailless/polimi-145cam_078M.bdf"
+    original_file_nameGAFs103 =  repo_path / "data/in/SOLGAFstailless/polimi-103cam.bdf"
 
     if RUN_INIT:
         run_nastran(original_file_name)
@@ -333,14 +338,17 @@ if (__name__ == "__main__"):
     if RUNNING:
         model0 = BDF()
         model0.read_bdf(original_file_name)
-        strut_panels = [k for k in model0.caeros.keys() if k > 31000 and k < 37000]
-        strut_conm2s = [k for k in model0.masses.keys() if model0.masses[k].eid in list(range(233,328+1))]
+        # strut_panels = [k for k in model0.caeros.keys() if k > 31000 and k < 37000]
+        strut_panels = [k for k in model0.caeros.keys() if k in [31001,33001,35001]]
+        # strut_conm2s = [k for k in model0.masses.keys() if model0.masses[k].eid in list(range(233,328+1))]
+        strut_conm2s = [k for k in model0.masses.keys() if model0.masses[k].eid in list(range(233,280+1))]
         strut_pbeams = [k for k in model0.properties.keys() if model0.properties[k].Pid() in list(range(5000, 5022+1))] 
+        strut_conm2s_symmetric = {i: i+48 for i in range(2, 48)}
         strut_conm2s_symmetric = {i: i+48 for i in range(2, 48)}
         strut_conm2s_coord = conm2_coord(model0, strut_conm2s)
         chord = model0.caeros[strut_panels[-1]].x12
     if VALIDATE:
-        validate_folder = repo_path / "data/out/parametric_analysis/VALIDATE_PANELS"
+        validate_folder = repo_path / "data/out/{}/VALIDATE_PANELS".format(PARAMETRIC_FOLDER)
         shift_strut_dict = {k: 0. for k in strut_panels}
         shift_panels(model0, shift_strut_dict)
         validate_folder.mkdir(parents=True, exist_ok=True)
@@ -353,7 +361,7 @@ if (__name__ == "__main__"):
         #shift_strut_dict = {k: si for k in strut_panels}
         #build_strut_shifting(shift_range, strut_panels, original_file_name, file_name= "sol145",
         #                     folder="/home/acea/runs/polimi/models/shift_panelsLM{}".format(NUM_MODES))
-        folder_out = repo_path / "data/out/parametric_analysis/shift_panels_{}{}".format(LABEL, NUM_MODES)
+        folder_out = repo_path / "data/out/{}/shift_panels_{}{}".format(PARAMETRIC_FOLDER, LABEL, NUM_MODES)
         file_out = "sol145.bdf"
         SHIFT_PANELS = [{'caero_shift': a} for a in [{k: si for k in strut_panels} for si in shift_range]]
         parametric_factory(SHIFT_PANELS, shift_panels, original_file_name, folder_out, file_out)
@@ -363,7 +371,7 @@ if (__name__ == "__main__"):
                                 strut_conm2s_symmetric)
         #build_strut_conm2shifting(chord, shift_chord, strut_conm2s, strut_conm2s_symmetric,
         #                           original_file_name)
-        folder_out = repo_path / "data/out/parametric_analysis/shift_conm2s_{}{}".format(LABEL, NUM_MODES)
+        folder_out = repo_path / "data/out/{}/shift_conm2s_{}{}".format(PARAMETRIC_FOLDER, LABEL, NUM_MODES)
         file_out = "sol145.bdf"
         SHIFT_MASSES = [{'shift_chord': a} for a in shift_chord]
         parametric_factory(SHIFT_MASSES, shift_conm2s, original_file_name, folder_out, file_out,
@@ -374,7 +382,7 @@ if (__name__ == "__main__"):
         build_strut_pbeams(pbeam_factors, strut_pbeams, original_file_name)
 
     if CHORD_EXTENSION:
-        folder_out = repo_path / "data/out/parametric_analysis/CHORD_EXTENSION_{}{}".format(LABEL, NUM_MODES)
+        folder_out = repo_path / "data/out/{}/CHORD_EXTENSION_{}{}".format(PARAMETRIC_FOLDER, LABEL, NUM_MODES)
         file_out = "sol145.bdf"
         A_FACTOR = [{'a_factor': a} for a in [0.7, 0.85, 1., 1.1, 1.2, 1.3]]
         parametric_factory(A_FACTOR, stretch_strutchord, original_file_name, folder_out, file_out,
@@ -391,7 +399,7 @@ if (__name__ == "__main__"):
         modes_reshape = modes.reshape((op2_nummodes, op2.numnodes * op2.numdim)).T
         op4_data = op4.OP4()
         op4_data.write_op4(str(original_file_nameGAFs.with_suffix('.op4')), {'PHG':(2, modes_reshape)}, is_binary=False)
-        run_nastran(original_file_nameGAFs)
+        #run_nastran(original_file_nameGAFs)
         #run_nastran(original_file_nameGAFs103) #Not working
 
     ###########################################################

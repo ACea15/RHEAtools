@@ -78,7 +78,8 @@ print("loadcases = %s" % eigenvector_keys)
 
 # get subcase 1
 eig1 = op2.eigenvectors[1]
-
+natural_freqs = np.array(eig1.mode_cycles) * 2 * np.pi
+np.save(SAVE_DIR0 + "/natural_freqs.npy", natural_freqs)
 #modes = eig1.modes
 times = eig1._times #  the generic version of modes
 #print("modes = %s\n" % modes)
