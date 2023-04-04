@@ -12,8 +12,8 @@
 
   MESH_FILE = "1901_inv.su2" #"1901_inv.su2"
   MARKERS_FILE = "sbw_1901.txt" #"sbw_1901.txt" # sbw_1901.txt
-  NUM_MODES = 5
-  SCALING = 0.1
+  NUM_MODES = 10
+  SCALING = 15.
   MACH_NUMBER = 0.75 #0.75#0.735
   FREESTREAM_TEMPERATURE= 216.66#222.773
   FREESTREAM_PRESSURE= 18752.378694043327#26201.65
@@ -76,7 +76,7 @@
 #+RESULTS: python_parameters2
 : 0.05678196086426339
 
-
+** tmp
 #+begin_src bash :results output :noweb yes
   c=0
   n=9
@@ -107,7 +107,7 @@
   (setq SCALING (number-to-string <<python_parameters(output="SCALING")>>))
   (print (concat "Number of Modes:" NUM_MODES))
   (print (concat "Scaling:" SCALING))
-  (setq output_label "mesh1901")
+  (setq output_label "mesh1901tailless")
   ;;(setq local_root (string-trim-right default-directory "/examples/"))
   ;;(setq local_root (replace-regexp-in-string "~" "$HOME" local_root))
   (setq local_root "/home/ac5015/programs/RHEAtools")
@@ -129,9 +129,9 @@
 
 #+RESULTS:
 : 
-: "Number of Modes:5"
+: "Number of Modes:10"
 : 
-: "Scaling:0.1"
+: "Scaling:15.0"
 : 
 : "ENV VARIABLES SET!!"
 : 
@@ -140,32 +140,31 @@
 * Modal shapes workflow
 #+NAME: ModalShapes
 #+header: 
-#+begin_src bash :noweb yes :dir (print program_dir0) :shebang #!/usr/bin/zsh :results output :var OUTPUT_DIR=(print mesh_deformation_tangle) dir1=(print local_root) NUM_MODES1=(print NUM_MODES) SCALING1=(print SCALING) :tangle (print (concat mesh_deformation_tangle "/generate_modes.sh")) :async
+#+begin_src bash :noweb yes :dir (print program_dir0) :shebang #!/usr/bin/zsh :results output :var OUTPUT_DIR=(print mesh_deformation_tangle) dir1=(print local_root) NUM_MODES1=(print NUM_MODES) SCALING1=(print SCALING) :tangle (print (concat mesh_deformation_tangle "/generate_modes.sh")) 
 
   MARKERS_FILE=<<python_parameters(output="MARKERS_FILE")>>
   echo $dir1
-  PYTHONPATH=$PYTHONPATH:$dir1
-  python examples/write_cam_modes.py -m $NUM_MODES1 -s $SCALING1 -f filter_sigmoid -d $OUTPUT_DIR -a $MARKERS_FILE
+  PYTHONPATH=$PYTHONPATH:$dir1 
+  NASTRAN_FILE=SOL103tailless/polimi-103cam	
+  python examples/write_cam_modes.py -m $NUM_MODES1 -s $SCALING1 -f filter_sigmoid -d $OUTPUT_DIR -a $MARKERS_FILE -n $NASTRAN_FILE
 #+end_src
 
 #+RESULTS: ModalShapes
 #+begin_example
-/home/ac5015/programs/RHEAtools/examples/..
-Modes scaling: 0.1
-Modes : [0, 1, 2, 3, 4]
-Filtering : <function filter_sigmoid at 0x7f5970f6feb0>
-Directory : /home/ac5015/programs/RHEAtools/examples/../data/out/ONERA_fac0.1/MeshDeformation_mesh1901
+/home/ac5015/programs/RHEAtools
+Modes scaling: 15.0
+Modes : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+Filtering : <function filter_sigmoid at 0x7f10bb6cfeb0>
+Directory : /home/ac5015/programs/RHEAtools/data/out/ONERA_fac15.0/MeshDeformation_mesh1901tailless
 MARKERS_FILE : ./data/in/sbw_1901.txt
-DEBUG:   bdf.py:1001                  ---starting BDF.read_bdf of ./data/in/SOL103/polimi-103cam.bdf---
-DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOL103/polimi-103cam.bdf'
-DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOL103/stick_wing.bdf'
-DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOL103/stick_fus.bdf'
-DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOL103/stick_vtail.bdf'
-DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOL103/stick_htail.bdf'
-DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOL103/stick_strut_corrected.bdf'
-DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOL103/mass_wing.bdf'
+DEBUG:   bdf.py:1001                  ---starting BDF.read_bdf of ./data/in/SOL103tailless/polimi-103cam.bdf---
+DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOL103tailless/polimi-103cam.bdf'
+DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOL103tailless/stick_wing.bdf'
+DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOL103tailless/stick_fus.bdf'
+DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOL103tailless/stick_strut.bdf'
+DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOL103tailless/mass_wing.bdf'
 DEBUG:   cross_reference.py:151       Cross Referencing...
-DEBUG:   bdf.py:1049                  ---finished BDF.read_bdf of ./data/in/SOL103/polimi-103cam.bdf---
+DEBUG:   bdf.py:1049                  ---finished BDF.read_bdf of ./data/in/SOL103tailless/polimi-103cam.bdf---
 ---BDF Statistics---
 SOL 103
 
@@ -178,23 +177,23 @@ bdf.spcs[100001]: 1
 bdf.params: 6
   PARAM    : 6
 
-bdf.nodes: 875
-  GRID     : 875
+bdf.nodes: 745
+  GRID     : 745
 
-bdf.elements: 170
-  CBAR     : 170
+bdf.elements: 146
+  CBAR     : 146
 
-bdf.rigid_elements: 181
-  RBE2     : 181
+bdf.rigid_elements: 153
+  RBE2     : 153
 
-bdf.properties: 138
-  PBAR     : 138
+bdf.properties: 123
+  PBAR     : 123
 
-bdf.masses: 328
-  CONM2    : 328
+bdf.masses: 274
+  CONM2    : 274
 
-bdf.materials: 5
-  MAT1     : 5
+bdf.materials: 3
+  MAT1     : 3
 
 bdf.methods: 1
   EIGRL    : 1
@@ -202,8 +201,8 @@ bdf.methods: 1
 
 DEBUG:   op2.py:542                   combine=True
 DEBUG:   op2.py:543                   -------- reading op2 with read_mode=1 (array sizing) --------
-INFO:    op2_scalar.py:1672           op2_filename = './data/in/SOL103/polimi-103cam.op2'
-DEBUG:   op2_reader.py:231            date = (3, 16, 23)
+INFO:    op2_scalar.py:1672           op2_filename = './data/in/SOL103tailless/polimi-103cam.op2'
+DEBUG:   op2_reader.py:231            date = (4, 3, 23)
 DEBUG:   op2_reader.py:302            mode = 'msc'
 DEBUG:   op2_scalar.py:1850             table_name=b'GEOM1'
 DEBUG:   op2_scalar.py:1850             table_name=b'GEOM2'
@@ -214,7 +213,7 @@ DEBUG:   op2_scalar.py:1850             table_name=b'DYNAMICS'
 DEBUG:   op2_scalar.py:1850             table_name=b'CASECC'
 DEBUG:   op2_scalar.py:1850             table_name=b'OUG1'
 DEBUG:   op2.py:562                   -------- reading op2 with read_mode=2 (array filling) --------
-DEBUG:   op2_reader.py:231            date = (3, 16, 23)
+DEBUG:   op2_reader.py:231            date = (4, 3, 23)
 DEBUG:   op2_reader.py:302            mode = 'msc'
 DEBUG:   op2_scalar.py:1850             table_name=b'GEOM1'
 DEBUG:   op2_scalar.py:1850             table_name=b'GEOM2'
@@ -239,6 +238,37 @@ times = [  1.   2.   3.   4.   5.   6.   7.   8.   9.  10.  11.  12.  13.  14.
  127. 128. 129. 130. 131. 132. 133. 134. 135. 136. 137. 138. 139. 140.
  141. 142. 143. 144. 145. 146. 147. 148. 149. 150.]
 
+#+end_example
+
+* Write Gafs from op4 to Matlab
+#+NAME: GAFs2Matlab
+#+begin_src bash :dir (print program_dir0) :shebang #!/usr/bin/zsh :results output  
+  MODEL_PATH=$HOME/programs/RHEAtools/data/in/SOLGAFstailless
+  GAFS_FILE=Qhh25-078.op4
+  NASTRAN_FILE=polimi-145cam_078M.bdf
+  echo $dir1
+  PYTHONPATH=$PYTHONPATH:$dir1
+  python src/read_matrices.py -p $MODEL_PATH -g $GAFS_FILE -n $NASTRAN_FILE
+#+end_src
+
+#+RESULTS: GAFs2Matlab
+#+begin_example
+
+Reading BDF to get reduced frequencies
+DEBUG:   bdf.py:1001                  ---starting BDF.read_bdf of /home/ac5015/programs/RHEAtools/data/in/SOLGAFstailless/polimi-145cam_078M.bdf---
+DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOLGAFstailless/polimi-145cam_078M.bdf'
+DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOLGAFstailless/M=0.78/Setup.bdf'
+DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOLGAFstailless/stick_wing.bdf'
+DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOLGAFstailless/stick_fus.bdf'
+DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOLGAFstailless/stick_strut.bdf'
+DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOLGAFstailless/aero_wing.bdf'
+DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOLGAFstailless/aero_strut.bdf'
+DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOLGAFstailless/mass_wing.bdf'
+INFO:    bdf.py:2350                      rejecting card_name = 'MDLPRM'
+DEBUG:   cross_reference.py:151       Cross Referencing...
+DEBUG:   bdf.py:1049                  ---finished BDF.read_bdf of /home/ac5015/programs/RHEAtools/data/in/SOLGAFstailless/polimi-145cam_078M.bdf---
+Reading OP4 where GAFs are located
+writing GAFs and reduced freqs. to /home/ac5015/programs/RHEAtools/data/in/SOLGAFstailless/matlab_gafs.mat
 #+end_example
 
 * Mesh deformation workflow
@@ -315,10 +345,10 @@ times = [  1.   2.   3.   4.   5.   6.   7.   8.   9.  10.  11.  12.  13.  14.
   DEFORM_LINEAR_SOLVER_PREC= ILU
   %
   % Number of smoothing iterations for mesh deformation
-  DEFORM_LINEAR_SOLVER_ITER= 20
+  DEFORM_LINEAR_SOLVER_ITER= 1000 %20
   %
   % Number of nonlinear deformation iterations (surface deformation increments)
-  DEFORM_NONLINEAR_ITER= 1
+  DEFORM_NONLINEAR_ITER= 3 %1
   %
   % Minimum residual criteria for the linear solver convergence of grid deformation
   DEFORM_LINEAR_SOLVER_ERROR= 4E-16
@@ -777,7 +807,7 @@ MARKER_MONITORING= ( wing, strut, fuselage, wing_fairing, strut_fairing )
         sshpass -f $LOCAL_ROOT/examples/pas scp $LOCAL_ROOT/$LOCAL_DIR/$MeshDeformationSteady/run.pbs ac5015@login.hpc.imperial.ac.uk:$HOME/$REMOTE_DIR/$MeshDeformationSteady/M$i/run.pbs
         sshpass -f $LOCAL_ROOT/examples/pas ssh ac5015@login.hpc.imperial.ac.uk << EOF
         cd $HOME/$REMOTE_DIR/$MeshDeformationSteady/M$i/
-        qsub run.pbs
+        #qsub run.pbs
     exit
   EOF
 
@@ -1063,23 +1093,38 @@ MARKER_MONITORING= ( wing, strut, fuselage, wing_fairing, strut_fairing )
 #+RESULTS: Orchestrator_MeshDeformation
 #+begin_example
 Current directory:
-/home/ac5015/programs/RHEAtools/data/out/ONERA_fac50.0/MeshDeformation_mesh1901
+/home/ac5015/programs/RHEAtools/data/out/ONERA_fac15.0/MeshDeformation_mesh1901tailless
 RUNNING hpc.sh
 Copying Interpolated Mode 0
 Submitting Mode 0
-7265080.pbs
+7336821.pbs
 Copying Interpolated Mode 1
 Submitting Mode 1
-7265082.pbs
+7336823.pbs
 Copying Interpolated Mode 2
 Submitting Mode 2
-7265083.pbs
+7336824.pbs
 Copying Interpolated Mode 3
 Submitting Mode 3
-7265084.pbs
+7336825.pbs
 Copying Interpolated Mode 4
 Submitting Mode 4
-7265086.pbs
+7336827.pbs
+Copying Interpolated Mode 5
+Submitting Mode 5
+7336829.pbs
+Copying Interpolated Mode 6
+Submitting Mode 6
+7336832.pbs
+Copying Interpolated Mode 7
+Submitting Mode 7
+7336835.pbs
+Copying Interpolated Mode 8
+Submitting Mode 8
+7336836.pbs
+Copying Interpolated Mode 9
+Submitting Mode 9
+7336838.pbs
 #+end_example
 
 *** Orchestrator_RecoverParaview
@@ -1114,31 +1159,41 @@ Submitting Mode 4
 #+RESULTS: Orchestrator_SteadyModes
 #+begin_example
 Current directory:
-/home/ac5015/programs/RHEAtools/data/out/ONERA_fac1.0/SteadyModes_mesh1901
+/home/ac5015/programs/RHEAtools/data/out/ONERA_fac15.0/SteadyModes_mesh1901tailless
 
 RUNNING hpc.sh
 Running Steady on reference config
-7304545.pbs
+7337104.pbs
 Creating and copying config file for Mode 0
 Copying .cfg
 Copying run.pbs
-7304547.pbs
 Creating and copying config file for Mode 1
 Copying .cfg
 Copying run.pbs
-7304549.pbs
 Creating and copying config file for Mode 2
 Copying .cfg
 Copying run.pbs
-7304551.pbs
 Creating and copying config file for Mode 3
 Copying .cfg
 Copying run.pbs
-7304552.pbs
 Creating and copying config file for Mode 4
 Copying .cfg
 Copying run.pbs
-7304553.pbs
+Creating and copying config file for Mode 5
+Copying .cfg
+Copying run.pbs
+Creating and copying config file for Mode 6
+Copying .cfg
+Copying run.pbs
+Creating and copying config file for Mode 7
+Copying .cfg
+Copying run.pbs
+Creating and copying config file for Mode 8
+Copying .cfg
+Copying run.pbs
+Creating and copying config file for Mode 9
+Copying .cfg
+Copying run.pbs
 #+end_example
 
 *** Recover paraview

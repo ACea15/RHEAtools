@@ -9,7 +9,7 @@ import src.filters
 
 def filter_sigmoid(x):
     a = 1.
-    b = 15.#6. #5
+    b = 12.#6. #5
     c = 2.5 #1.85 # 2.
     return src.filters.filter_sigmoid(x, a, b, c)
 
