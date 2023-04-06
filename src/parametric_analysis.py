@@ -202,7 +202,12 @@ def conm2_coord(model, conm2s_ids):
 
 def read145_f06(fileX):
 
-    f1 = flutter.make_flutter_response(f"{fileX}.f06",
+    if ".f06" in str(fileX):
+        file_in = str(fileX)
+    else:
+        file_in = f"{fileX}.f06"
+    
+    f1 = flutter.make_flutter_response(file_in,
                                        {'eas':'m/s', 'velocity':'m/s', 'density':'kg/m^3', 'altitude':'m',
                                         'dynamic_pressure':'Pa'},
                                        {'eas':'m/s', 'velocity':'m/s', 'density':'kg/m^3', 'altitude':'m',
@@ -282,6 +287,24 @@ def build_flutter(main_folder, files, file_name="sol145",  Modes=None, collector
             results[fi] = collector_i
     return results
 
+def build_flutter2(file_paths, file_names, Modes=None, collector=None):
+
+    results = dict()
+    for i_, fi in enumerate(file_names):
+        if collector is not None:
+            collector_i = collector.copy()
+        fileX = file_paths[i_]
+        if collector is None:
+            FlutterSpeed, FlutterMode = calculate_flutter(file_paths[i_],
+                                                          Modes)
+            results[fi] = dict(FlutterSpeed=FlutterSpeed,
+                               FlutterMode=FlutterMode)
+        else:
+            calculate_flutter(fileX, Modes, collector_i)
+            results[fi] = collector_i
+    return results
+
+
 def build_results_df(files, parametric_var, results):
 
     #import pdb; pdb.set_trace()
@@ -289,13 +312,21 @@ def build_results_df(files, parametric_var, results):
     for ki, vi in parametric_var.items():
         flutter_speed = []
         flutter_mode = []
+        index = []
         for fi in files:
             if ki == fi[:len(ki)]:
                 flutter_speed.append(results[fi]["FlutterSpeed"])
                 flutter_mode.append(results[fi]["FlutterMode"])
+                index.append(int(fi.split("_")[-1]))
         try:
-            df = pd.DataFrame({'flutter': flutter_speed,
-                               'flutter_mode': flutter_mode,
+            flutter_speed_order = [0. for _i in range(len(index))]
+            flutter_mode_order = [0. for _i in range(len(index))]
+            for _i, _v in enumerate(index):
+                flutter_speed_order[_v] = flutter_speed[_i]
+                flutter_mode_order[_v] = flutter_mode[_i]
+            
+            df = pd.DataFrame({'flutter': flutter_speed_order,
+                               'flutter_mode': flutter_mode_order,
                                'xlabel': vi
                                })
         except ValueError:

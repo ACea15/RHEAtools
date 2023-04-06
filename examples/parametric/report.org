@@ -12,9 +12,9 @@
 * House keeping :noexport:
 #+begin_src elisp :results none :tangle no :exports none
   (add-to-list 'org-structure-template-alist
-               '("sp" . "src python :session py1"))
+    '("sp" . "src python :session py1"))
   (add-to-list 'org-structure-template-alist
-               '("se" . "src elisp"))
+    '("se" . "src elisp"))
 
   (setq org-confirm-babel-evaluate nil)
   (setq org-latex-pdf-process (list "latexmk -f -pdf -interaction=nonstopmode -output-directory=%o %f"))
@@ -33,24 +33,27 @@
   (add-to-list 'org-export-filter-headline-functions
                'org/ensure-latex-clearpage)
 
-  (pyvenv-workon "nastran")
-  (require 'org-tempo)
-
+  (setq local_root (concat default-directory "../../"))
 #+end_src
 
-* Load modules                                                     :noexport:
-#+begin_src python :session py1 :results none
+#+begin_src emacs-lisp  :session py1 :results none :tangle nil :exports none
+  (pyvenv-workon "nastran")
+  (require 'org-tempo)
+#+end_src
+* Load modules :noexport:
+#+begin_src python :session py1 :results none :var dir1=(print local_root)
+  import sys
+  sys.path.append(dir1)
   import src.parametric_analysis
-  import inspect
-  import pathlib
   import plotly.express as px
   import pandas as pd
+  import pathlib
   import matplotlib.pyplot as plt
   from tabulate import tabulate
 #+end_src
 * Boilerplate src :noexport:
 #+name: pd2org
-#+begin_src python :session py1 :var df="df" :exports none
+#+begin_src python :var df="df" :exports none
   return f"return tabulate({df}, headers={df}.columns, tablefmt='orgtbl')"
 #+end_src
 
@@ -68,60 +71,107 @@
 : 'plot.svg'
 
 * Read results :noexport:
+:PROPERTIES:
+:header-args: :eval never-export :exports none
+:END:
+
+#+begin_src python :session py1 :results output :var dir1=(print local_root)
+
+  def get_files(folder_path):
+
+      file_paths = []
+      file_names = []
+      _dir = pathlib.Path(folder_path)
+      for i in _dir.glob("**/*.f06"):
+          file_paths += str(i)
+          file_names += i.parent.name
+      return file_paths, file_names
+
+#+end_src
+
+#+RESULTS:
 
 #+begin_src python :session py1  :results value
-  import sys
 
-  main_folder = '/'.join(([si for si in sys.path if "RHEAtools" in si][0].split('/')[:[si for si
-                                                                                       in sys.path if "RHEAtools" in si][0].split('/').index("RHEAtools")+1]))
-  main_folder += "/data/out/parametric_analysis"
-  #main_folder = "/home/acea/pCloudDrive/Imperial/PostDoc/models_POLIMI/"
-  #main_folder = "/Users/acea/pCloud Drive/Imperial/PostDoc/models_POLIMI/"
-  files = []
-  files += [f"shift_conm2s_M15_{xi}" for xi in range(11)]
-  files += [f"shift_conm2s_M25_{xi}" for xi in range(11)]
-  files += [f"shift_conm2s_LM15_{xi}" for xi in range(11)]
-  files += [f"shift_conm2s_LM25_{xi}" for xi in range(11)]
-  #files += [f"shift_conm2s_oldM8_{xi}" for xi in range(11)]
-  files += [f"shift_conm2s_oldM15_{xi}" for xi in range(11)]
-  files += [f"shift_conm2s_oldM25_{xi}" for xi in range(11)]
+    def get_files(folder_path):
 
-  # files += [f"shift_panels3_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
-  files += [f"shift_panels_M15_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
-  files += [f"shift_panels_M25_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
-  files += [f"shift_panels_LM15_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
-  files += [f"shift_panels_LM25_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
-  #files += [f"shift_panels_oldM8_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
-  files += [f"shift_panels_oldM15_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
-  files += [f"shift_panels_oldM25_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
+        file_paths = []
+        file_names = []
+        _dir = pathlib.Path(folder_path)
+        for i in _dir.glob("**/*.f06"):
+            file_paths.append(str(i))
+            file_names.append(i.parent.name)
+        return file_paths, file_names
 
-  ######
-  files += [f"CHORD_EXTENSION_M15_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
-  files += [f"CHORD_EXTENSION_M25_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
-  files += [f"CHORD_EXTENSION_LM15_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
-  files += [f"CHORD_EXTENSION_LM25_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
-  #files += [f"CHORD_EXTENSION_oldM8_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
-  files += [f"CHORD_EXTENSION_oldM15_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
-  files += [f"CHORD_EXTENSION_oldM25_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
+    main_folder = '/'.join(([si for si in sys.path if "RHEAtools" in si][0].split('/')[:[si for si
+                                                                                         in sys.path if "RHEAtools" in si][0].split('/').index("RHEAtools")+1]))
+    main_folder += "/data/nastran_studies/parametric_analysis078M"
+    file_paths, file_names = get_files(main_folder)
+    #main_folder = "/home/acea/pCloudDrive/Imperial/PostDoc/models_POLIMI/"
+    #main_folder = "/Users/acea/pCloud Drive/Imperial/PostDoc/models_POLIMI/"
+    #files = []
+    # files += [f"shift_conm2s_M15_{xi}" for xi in range(11)]
+    # files += [f"shift_conm2s_M25_{xi}" for xi in range(11)]
+    # files += [f"shift_conm2s_LM15_{xi}" for xi in range(11)]
+    # files += [f"shift_conm2s_LM25_{xi}" for xi in range(11)]
+    # #files += [f"shift_conm2s_oldM8_{xi}" for xi in range(11)]
+    # files += [f"shift_conm2s_oldM15_{xi}" for xi in range(11)]
+    # files += [f"shift_conm2s_oldM25_{xi}" for xi in range(11)]
 
-  collector_list = ['sol145']
-  collector = {ci: None for ci in collector_list}
-  results = src.parametric_analysis.build_flutter(main_folder, files, Modes=range(15), collector=collector)
+    # # files += [f"shift_panels3_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
+    # files += [f"shift_panels_M15_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
+    # files += [f"shift_panels_M25_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
+    # files += [f"shift_panels_LM15_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
+    # files += [f"shift_panels_LM25_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
+    # #files += [f"shift_panels_oldM8_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
+    # files += [f"shift_panels_oldM15_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
+    # files += [f"shift_panels_oldM25_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
 
-  parametric_vars = {f"shift_conm2s_M{i}": [0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25] for i in [15, 25]}
-  parametric_vars = {f"shift_conm2s_oldM{i}": [0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25] for i in [15, 25]}
-  parametric_vars.update({f"shift_panels_M{i}": [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25] for i in [15, 25]})
-  parametric_vars.update({f"shift_panels_oldM{i}": [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25] for i in [15, 25]})
-  parametric_vars.update({f"CHORD_EXTENSION_M{i}": [0.7, 0.85, 1., 1.1, 1.2, 1.3] for i in [15, 25]})
-  parametric_vars.update({f"shift_conm2s_LM{i}": [0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25] for i in [15, 25]})
-  parametric_vars.update({f"shift_panels_LM{i}": [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25] for i in [15, 25]})
-  parametric_vars.update({f"CHORD_EXTENSION_LM{i}": [0.7, 0.85, 1., 1.1, 1.2, 1.3] for i in [15, 25]})
-  parametric_vars.update({f"CHORD_EXTENSION_oldM{i}": [0.7, 0.85, 1., 1.1, 1.2, 1.3] for i in [25]})
+    # ######
+    #files += [f"CHORD_EXTENSION_tailless10_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
+    # files += [f"CHORD_EXTENSION_tailless15_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2]))]
+    # files += [f"CHORD_EXTENSION_tailless25_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2]))]
 
-  results_df = src.parametric_analysis.build_results_df(files,
-                                                        parametric_vars,
-                                                        results)
-  "Data read!"
+    # files += [f"CHORD_EXTENSION_M25_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
+    # files += [f"CHORD_EXTENSION_LM15_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
+    # files += [f"CHORD_EXTENSION_LM25_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
+    # #files += [f"CHORD_EXTENSION_oldM8_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
+    # files += [f"CHORD_EXTENSION_oldM15_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
+    # files += [f"CHORD_EXTENSION_oldM25_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
+
+    collector_list = ['sol145']
+    collector = {ci: None for ci in collector_list}
+    # #results = src.parametric_analysis.build_flutter(main_folder, files, Modes=range(10), collector=collector)
+    results = src.parametric_analysis.build_flutter2(file_paths, file_names, Modes=range(10), collector=collector)
+
+    def get_parametric_vars(vars_set, file_names):
+        parametric_vars = dict()
+        for fi in file_names:
+            var = '_'.join(fi.split("_")[:-1])
+            for ki, vi in vars_set.items():
+                if ki in var and var not in parametric_vars.keys():
+                    parametric_vars[var] = vi
+        return parametric_vars
+
+    vars_set = dict(shift_conm2s=[0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25],
+                    CHORD_EXTENSION=[0.7, 0.85, 1., 1.1, 1.2, 1.3],
+                    shift_panels_tailless=[-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25])
+    parametric_vars = get_parametric_vars(vars_set, file_names)
+    # parametric_vars = {}
+    # parametric_vars = {f"shift_conm2s_M{i}": [0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25] for i in [15, 25]}
+    # parametric_vars = {f"shift_conm2s_oldM{i}": [0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25] for i in [15, 25]}
+    # parametric_vars.update({f"shift_panels_M{i}": [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25] for i in [15, 25]})
+    # parametric_vars.update({f"shift_panels_oldM{i}": [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25] for i in [15, 25]})
+    # parametric_vars.update({f"CHORD_EXTENSION_M{i}": [0.7, 0.85, 1., 1.1, 1.2, 1.3] for i in [15, 25]})
+    # parametric_vars.update({f"shift_conm2s_LM{i}": [0., -0.05, -0.1, -0.15, -0.2, -0.25, 0.05, 0.1, 0.15, 0.2, 0.25] for i in [15, 25]})
+    # parametric_vars.update({f"shift_panels_LM{i}": [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25] for i in [15, 25]})
+    #parametric_vars.update({f"CHORD_EXTENSION_tailless{i}": [0.7, 0.85, 1., 1.1, 1.2] for i in [15, 25]})
+    # parametric_vars.update({f"CHORD_EXTENSION_oldM{i}": [0.7, 0.85, 1., 1.1, 1.2, 1.3] for i in [25]})
+
+    results_df = src.parametric_analysis.build_results_df(file_names,
+                                                          parametric_vars,
+                                                          results)
+    "Data read!"
 #+end_src
 
 #+RESULTS:
@@ -131,129 +181,27 @@
 :PROPERTIES:
 :header-args: :var name=(org-element-property :name (org-element-context)) :session py1
 :END:
-** Flutter parametric comparisons
-#+NAME: FLUTTER-CHORD_EXTENSION_M15 
+
+** Reference case
+
+** Parametric lumped masses
+#+NAME: FLUTTER-shift_conm2s_tailless15
 #+begin_src python  :results raw :exports results
   df_ = results_df[name.split("-")[-1]]
   df_ = df_.rename(columns={"xlabel": "factor"})
+  df_['flutter_mode']+=1
   #df_["factor"] = [0.75, 0.9, 1., 1.1, 1.2]
   tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
 #+end_src
 
-#+RESULTS: FLUTTER-CHORD_EXTENSION_M15
-| flutter | flutter_mode | factor |
-|---------+--------------+--------|
-| 193.095 |            4 |    0.7 |
-| 145.105 |           11 |   0.85 |
-| 153.953 |            2 |      1 |
-| 171.316 |            2 |    1.1 |
-| 152.789 |           11 |    1.2 |
-| 141.428 |           11 |    1.3 |
 
-
-#+NAME: FLUTTER-CHORD_EXTENSION_M25 
-#+begin_src python  :results raw :exports results
-  df_ = results_df[name.split("-")[-1]]
-  df_ = df_.rename(columns={"xlabel": "factor"})
-  #df_["factor"] = [0.75, 0.9, 1., 1.1, 1.2]
-  tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
-#+end_src
-
-#+RESULTS: FLUTTER-CHORD_EXTENSION_M25
-| flutter | flutter_mode | factor |
-|---------+--------------+--------|
-| 194.297 |            4 |    0.7 |
-| 155.419 |            4 |   0.85 |
-| 159.353 |            2 |      1 |
-| 172.804 |           11 |    1.1 |
-| 150.913 |           11 |    1.2 |
-| 141.108 |           11 |    1.3 |
-
-#+NAME: FLUTTER-CHORD_EXTENSION_oldM25 
-#+begin_src python  :results raw :exports results
-  df_ = results_df[name.split("-")[-1]]
-  df_ = df_.rename(columns={"xlabel": "factor"})
-  #df_["factor"] = [0.75, 0.9, 1., 1.1, 1.2]
-  tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
-#+end_src
-
-#+RESULTS: FLUTTER-CHORD_EXTENSION_oldM25
-| flutter | flutter_mode | factor |
-|---------+--------------+--------|
-| 159.745 |            4 |    0.7 |
-|   152.8 |            4 |   0.85 |
-| 170.437 |            2 |      1 |
-| 202.985 |            2 |    1.1 |
-| 186.957 |           11 |    1.2 |
-| 179.594 |           11 |    1.3 |
-
-
-#+NAME: FLUTTER-CHORD_EXTENSION_LM15 
-#+begin_src python  :results raw :exports results
-  df_ = results_df[name.split("-")[-1]]
-  df_ = df_.rename(columns={"xlabel": "factor"})
-  #df_["factor"] = [0.75, 0.9, 1., 1.1, 1.2]
-  tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
-#+end_src
-
-#+RESULTS: FLUTTER-CHORD_EXTENSION_LM15
-| flutter | flutter_mode | factor |
-|---------+--------------+--------|
-| 193.095 |            4 |    0.7 |
-| 145.105 |           11 |   0.85 |
-| 153.953 |            2 |      1 |
-| 171.316 |            2 |    1.1 |
-| 152.789 |           11 |    1.2 |
-| 141.428 |           11 |    1.3 |
-
-#+NAME: FLUTTER-shift_conm2s_M15 
-#+begin_src python  :results raw :exports results
-  df_ = results_df[name.split("-")[-1]]
-  df_ = df_.rename(columns={"xlabel": "factor"})
-  #df_["factor"] = [0.75, 0.9, 1., 1.1, 1.2]
-  tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
-#+end_src
-
-#+RESULTS: FLUTTER-shift_conm2s_M15
-| flutter | flutter_mode | factor |
-|---------+--------------+--------|
-| 153.953 |            2 |      0 |
-| 150.495 |            2 |  -0.05 |
-|  147.43 |            2 |   -0.1 |
-| 144.703 |            2 |  -0.15 |
-| 142.252 |            2 |   -0.2 |
-| 140.015 |            2 |  -0.25 |
-| 157.956 |            2 |   0.05 |
-| 162.615 |            2 |    0.1 |
-| 158.712 |           14 |   0.15 |
-| 153.019 |           14 |    0.2 |
-|   148.6 |           14 |   0.25 |
-
-#+NAME: FLUTTER-CHORD_EXTENSION_LM25 
-#+begin_src python  :results raw :exports results
-  df_ = results_df[name.split("-")[-1]]
-  df_ = df_.rename(columns={"xlabel": "factor"})
-  #df_["factor"] = [0.75, 0.9, 1., 1.1, 1.2]
-  tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
-#+end_src
-
-#+RESULTS: FLUTTER-CHORD_EXTENSION_LM25
-| flutter | flutter_mode | factor |
-|---------+--------------+--------|
-| 194.297 |            4 |    0.7 |
-| 155.419 |            4 |   0.85 |
-| 159.353 |            2 |      1 |
-| 172.804 |           11 |    1.1 |
-| 150.913 |           11 |    1.2 |
-| 141.108 |           11 |    1.3 |
-
-** VgVf plots
-#+NAME: VgVf-CHORD_EXTENSION_M15_0
+*** Masses shifted -0.15%
+#+NAME: VgVf-shift_conm2s_tailless15_3
 #+begin_src python :session py1 :results value file  :exports results 
   fig1 = f"./img/{name}.png"
-  results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 15),
-                                                        ylim_damping=[-0.1, 0.1],
-                                                        ylim_freq=[0.1, 5],
+  results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 25),
+                                                        ylim_damping=[-0.04, 0.02],
+                                                        ylim_freq=[0.1, 5.8],
                                                         legend=True)
   #<<savefig(figname=fig1)>>
   plt.savefig(fig1)
@@ -261,38 +209,165 @@
   fig1
 #+end_src
 
-#+RESULTS: VgVf-CHORD_EXTENSION_M15_0
-[[file:./img/VgVf-CHORD_EXTENSION_M15_0.png]]
+#+RESULTS: VgVf-shift_conm2s_tailless15_3
+[[file:./img/VgVf-shift_conm2s_tailless15_3.png]]
 
-#+NAME: VgVf-CHORD_EXTENSION_M25_0
+*** Masses shifted +0.1%
+#+NAME: VgVf-shift_conm2s_tailless15_7
 #+begin_src python :session py1 :results value file  :exports results 
   fig1 = f"./img/{name}.png"
-  results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 15),
-                                                         ylim_damping=[-0.1, 0.1],
-                                                         ylim_freq=[0.1, 5],
-                                                         legend=True)
+  results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 25),
+                                                        ylim_damping=[-0.04, 0.02],
+                                                        ylim_freq=[0.1, 5.8],
+                                                        legend=True)
   #<<savefig(figname=fig1)>>
   plt.savefig(fig1)
   #plt.close()
   fig1
 #+end_src
 
-#+NAME: VgVf-CHORD_EXTENSION_LM25_0
+#+RESULTS: VgVf-shift_conm2s_tailless15_7
+[[file:./img/VgVf-shift_conm2s_tailless15_7.png]]
+
+*** Masses shifted +0.2%
+#+NAME: VgVf-shift_conm2s_tailless15_9
 #+begin_src python :session py1 :results value file  :exports results 
   fig1 = f"./img/{name}.png"
-  results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 15),
-                                                         ylim_damping=[-0.1, 0.1],
-                                                         ylim_freq=[0.1, 5],
-                                                         legend=True)
+  results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 25),
+                                                        ylim_damping=[-0.04, 0.02],
+                                                        ylim_freq=[0.1, 5.8],
+                                                        legend=True)
   #<<savefig(figname=fig1)>>
   plt.savefig(fig1)
   #plt.close()
   fig1
 #+end_src
 
-#+RESULTS: VgVf-CHORD_EXTENSION_LM25_0
-[[file:./img/VgVf-CHORD_EXTENSION_LM25_0.png]]
+#+RESULTS: VgVf-shift_conm2s_tailless15_9
+[[file:./img/VgVf-shift_conm2s_tailless15_9.png]]
 
+
+** Parametric aerodynamic placement
+#+NAME: FLUTTER-shift_panels_tailless15
+#+begin_src python  :results raw :exports results
+  df_ = results_df[name.split("-")[-1]]
+  df_ = df_.rename(columns={"xlabel": "factor"})
+  df_['flutter_mode']+=1
+  #df_["factor"] = [0.75, 0.9, 1., 1.1, 1.2]
+  tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
+#+end_src
+
+#+RESULTS: FLUTTER-shift_panels_tailless15
+| flutter | flutter_mode | factor |
+|---------+--------------+--------|
+| 172.617 |            4 |  -0.25 |
+| 173.109 |            4 |   -0.2 |
+| 172.351 |            3 |  -0.15 |
+| 171.465 |            3 |   -0.1 |
+| 169.786 |            3 |      0 |
+| 168.222 |            3 |    0.1 |
+|  167.49 |            3 |   0.15 |
+| 166.837 |            3 |    0.2 |
+| 166.206 |            3 |   0.25 |
+
+#+RESULTS: FLUTTER-shift_panels_tailless25
+| flutter | flutter_mode | factor |
+|---------+--------------+--------|
+| 175.832 |            3 |  -0.25 |
+| 174.661 |            3 |   -0.2 |
+| 173.519 |            3 |  -0.15 |
+| 172.435 |            3 |   -0.1 |
+| 170.423 |            3 |      0 |
+| 168.685 |            3 |    0.1 |
+| 167.887 |            3 |   0.15 |
+| 167.071 |            3 |    0.2 |
+| 166.447 |            3 |   0.25 |
+
+#+RESULTS: FLUTTER-shift_panels_tailless10
+| flutter | flutter_mode | factor |
+|---------+--------------+--------|
+| 168.873 |            3 |  -0.25 |
+| 167.962 |            3 |   -0.2 |
+|  167.14 |            3 |  -0.15 |
+| 166.373 |            3 |   -0.1 |
+| 164.922 |            3 |      0 |
+| 163.647 |            3 |    0.1 |
+| 163.091 |            3 |   0.15 |
+| 162.559 |            3 |    0.2 |
+| 162.069 |            3 |   0.25 |
+
+
+
+#+NAME: VgVf-CHORD_EXTENSION_tailless25_4
+#+begin_src python :session py1 :results value file  :exports results 
+  fig1 = f"./img/{name}.png"
+  results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 20),
+                                                        ylim_damping=[-0.04, 0.02],
+                                                        ylim_freq=[0.1, 7],
+                                                        legend=True)
+  #<<savefig(figname=fig1)>>
+  plt.savefig(fig1)
+  #plt.close()
+  fig1
+#+end_src
+
+
+** Parametric strut-stretching
+#+NAME: FLUTTER-CHORD_EXTENSION_tailless25
+#+begin_src python  :results raw :exports results
+  df_ = results_df[name.split("-")[-1]]
+  df_ = df_.rename(columns={"xlabel": "factor"})
+  df_['flutter_mode']+=1
+  #df_["factor"] = [0.75, 0.9, 1., 1.1, 1.2]
+  tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
+#+end_src
+
+#+RESULTS: FLUTTER-CHORD_EXTENSION_tailless25
+| flutter | flutter_mode | factor |
+|---------+--------------+--------|
+| 159.745 |            5 |    0.7 |
+| 152.665 |            5 |   0.85 |
+| 170.423 |            3 |      1 |
+| 203.342 |            3 |    1.1 |
+| 193.152 |           10 |    1.2 |
+| 176.527 |           10 |    1.3 |
+
+#+RESULTS: FLUTTER-CHORD_EXTENSION_tailless15
+| flutter | flutter_mode | factor |
+|---------+--------------+--------|
+| 162.387 |            5 |    0.7 |
+| 152.948 |            5 |   0.85 |
+| 169.786 |            3 |      1 |
+| 203.007 |            3 |    1.1 |
+| 183.747 |           10 |    1.2 |
+| 174.885 |           10 |    1.3 |
+
+#+RESULTS: FLUTTER-CHORD_EXTENSION_tailless10
+| flutter | flutter_mode | factor |
+|---------+--------------+--------|
+| 159.953 |            5 |    0.7 |
+| 147.295 |            5 |   0.85 |
+| 164.922 |            3 |      1 |
+| 193.728 |            3 |    1.1 |
+| 193.397 |           10 |    1.2 |
+| 183.021 |           10 |    1.3 |
+
+
+#+NAME: VgVf-CHORD_EXTENSION_tailless25_0
+#+begin_src python :session py1 :results value file  :exports results 
+  fig1 = f"./img/{name}.png"
+  results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 20),
+                                                        ylim_damping=[-0.07, 0.03],
+                                                        ylim_freq=[0.1, 6.5],
+                                                        legend=True)
+  #<<savefig(figname=fig1)>>
+  plt.savefig(fig1)
+  #plt.close()
+  fig1
+#+end_src
+
+#+RESULTS: VgVf-CHORD_EXTENSION_tailless25_0
+[[file:./img/VgVf-CHORD_EXTENSION_tailless25_0.png]]
 
 
 * Introduction
