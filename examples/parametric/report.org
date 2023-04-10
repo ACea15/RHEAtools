@@ -1,4 +1,5 @@
-#+TITLE: High Fidelity Flutter with a Parametric Assessment of a SBW configuration
+#+TITLE: High Fidelity Flutter with a Parametric Assessment of a Strut-Braced Wing Aircraft
+#+AUTHOR: Alvaro Cea and Rafael Palacios
 #+OPTIONS: toc:nil
 #+LATEX_HEADER: \usepackage[margin=1in]{geometry}
 
@@ -90,9 +91,9 @@
       return file_paths, file_names
 
   main_folder = '/'.join(([si for si in sys.path if "RHEAtools" in si][0].split('/')[:[si for si
-                                                                                       in sys.path if "RHEAtools" in si][0].split('/').index("RHEAtools")+1]))
-  # main_folder += "/data/nastran_studies/parametric_analysis078M"
-  main_folder += "/data/out/parametric_analysis078M"
+                            in sys.path if "RHEAtools" in si][0].split('/').index("RHEAtools")+1]))
+  main_folder += "/data/nastran_studies/parametric_analysis078M"
+  #main_folder += "/data/out/parametric_analysis078M"
   file_paths, file_names = get_files(main_folder)
   #main_folder = "/home/acea/pCloudDrive/Imperial/PostDoc/models_POLIMI/"
   #main_folder = "/Users/acea/pCloud Drive/Imperial/PostDoc/models_POLIMI/"
@@ -129,7 +130,7 @@
   collector_list = ['sol145']
   collector = {ci: None for ci in collector_list}
   # #results = src.parametric_analysis.build_flutter(main_folder, files, Modes=range(10), collector=collector)
-  results = src.parametric_analysis.build_flutter2(file_paths, file_names, Modes=range(15), collector=collector)
+  results = src.parametric_analysis.build_flutter2(file_paths, file_names, Modes=range(10), collector=collector)
 
   def get_parametric_vars(vars_set, file_names):
       parametric_vars = dict()
@@ -162,122 +163,119 @@
 #+end_src
 
 #+RESULTS:
+: Data read!
 
 
+* Introduction
 
-* Make postprocessing                                              :noexport:
+#+CAPTION: SBW challenges  
+#+ATTR_LATEX: :width 0.75\textwidth 
+[[./img/SBW_challenges.png]]
+
+* Computational process and tools
+Process built to create modal shapes:
+- Run Nastran 103 solution.
+- Read the beam and rigid connectors (RBE2s) positions from .bdf file and corresponding displacements from .op2 file.
+- Select a number of chordwise divisions and build the data matrix of locations and displacements.
+- Create Paraview file from data.
+
+** Interpolation between model fidelities
+
+#+ATTR_LATEX: :width 0.8\textwidth 
+[[./img/interpolation.pdf]]
+
+* Structural and aerodynamic models
+- Framework in place to map data between structural and aerodynamic models
+- Parameterised Nastran model for the strut in order to increase flutter.  
+- Current mismatch in strut-wing attachment point between aerodynamic mesh and structural model.
+- Aerodynamic mesh deformed with modal shapes from in-house Nastran post-processor. 
+  
+#+CAPTION: Combined models from ONERA (CFD mesh) and and POLIMI (panels representation from structural model)
+#+ATTR_LATEX: :width 0.85\textwidth 
+[[./img/su2_polimi-ref.png]]
+
+\newpage
+** Mesh deformation of modal shapes
+
+#+CAPTION: Deformed mesh (in blue), aerodynamic panels (red-green) and reference mesh for mode one
+#+ATTR_LATEX: :width 0.75\textwidth 
+[[./img/M0-15A-3D_Panels.png]]
+
+#+CAPTION: Deformed mesh (in blue), aerodynamic panels (red-green) and reference mesh for mode five
+#+ATTR_LATEX: :width 0.75\textwidth 
+[[./img/M5-15A-3D_Panels.png]]
+
+
+\newpage
+** CFD steady simulations in SU2
+
+SU2 mesh produced from ONERA model by our colleagues. Comparisons carried out for RANS simulations. We use Euler solvers for flutter and the following steady simulations are reasonable.   
+#+CAPTION: Cp field, mode one, front view
+#+ATTR_LATEX: :width 0.7\textwidth 
+[[./img/M0-15A-STEADY_front.png]]
+
+#+CAPTION:  Cp field, mode one, side view
+#+ATTR_LATEX: :width 0.7\textwidth 
+[[./img/M0-15A-STEADY_side.png]]
+
+#+CAPTION: Cp field, mode five, front view
+#+ATTR_LATEX: :width 0.7\textwidth 
+[[./img/M4-15A-STEADY_front.png]]
+
+#+CAPTION:  Cp field, mode five, side view
+#+ATTR_LATEX: :width 0.7\textwidth 
+[[./img/M4-15A-STEADY_side.png]]
+
+#+CAPTION: Cp field, mode eight, front view
+#+ATTR_LATEX: :width 0.7\textwidth 
+[[./img/M7-15A-STEADY_front.png]]
+
+#+CAPTION:  Cp field, mode eight, side view
+#+ATTR_LATEX: :width 0.7\textwidth 
+[[./img/M7-15A-STEADY_side.png]]
+
+
+\newpage
+* Baseline Flutter analysis 
 :PROPERTIES:
 :header-args: :var name=(org-element-property :name (org-element-context)) :session py1
 :END:
 
-** Reference case
-#+NAME: FLUTTER-reference
+- Cruise analysis ($U_\infty = 252.8 m/s$ $M_\infty = 0.79$, $Altitude = 7000 m$)
+- Flutter speed:  \approx 171 m/s (33% below cruise speed)
+- Design approaches to increase flutter:
+  - Shifting of panels
+  - Movement of masses
+  - Change stiffness
+
+#+NAME: FLUTTER-baseline
 #+begin_src python  :results raw :exports results
-  flutter_speeds = [results[f'shift_conm2s_tailless{i}_0']['FlutterSpeed'] for i in [10, 15, 25, 30]]
+  modes_influtter  = [6, 10, 15, 25]
+  gafs_flutter = [173.0, 165.0, 169.7, 170.4]
+  flutter_speeds = [results[f'shift_conm2s_tailless{i}_0']['FlutterSpeed'] for i in modes_influtter]
+  df_  = pd.DataFrame({'Num. Modes': modes_influtter, 'flutter Nastran':flutter_speeds,
+                       'flutter GAFs': gafs_flutter})
   #df_ = df_.rename(columns={"xlabel": "factor"})
   #df_['flutter_mode']+=1
   #df_["factor"] = [0.75, 0.9, 1., 1.1, 1.2]
-  # tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
-#+end_src
-
-#+RESULTS: FLUTTER-reference
-
-#+NAME: VgVfreference-shift_conm2s_tailless25_0
-#+begin_src python :session py1 :results value file  :exports results 
-  fig1 = f"./img/{name}.png"
-  results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 25),
-                                                        ylim_damping=[-0.05, 0.025],
-                                                        ylim_freq=[0.1, 5.8],
-                                                        legend=True)
-  #<<savefig(figname=fig1)>>
-  plt.savefig(fig1)
-  #plt.close()
-  fig1
-#+end_src
-
-#+RESULTS: VgVfreference-shift_conm2s_tailless25_0
-[[file:./img/VgVfreference-shift_conm2s_tailless25_0.png]]
-
-
-** Parametric lumped masses
-#+NAME: FLUTTER-shift_conm2s_tailless40
-#+begin_src python  :results raw :exports results
-  df_ = results_df[name.split("-")[-1]]
-  df_ = df_.rename(columns={"xlabel": "factor"})
-  df_['flutter_mode']+=1
-  #df_["factor"] = [0.75, 0.9, 1., 1.1, 1.2]
   tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
+  #plt.plot(modes_influtter, flutter_speeds)
 #+end_src
 
-#+RESULTS: FLUTTER-shift_conm2s_tailless40
-| flutter | flutter_mode | factor |
-|---------+--------------+--------|
-| 114.525 |            4 |      0 |
-|  114.38 |            3 |  -0.05 |
-| 118.927 |            4 |   -0.1 |
-| 115.944 |            3 |  -0.15 |
-| 116.746 |            3 |   -0.2 |
-| 117.608 |            3 |  -0.25 |
-| 116.782 |            4 |   0.05 |
-| 112.204 |            3 |    0.1 |
-| 115.526 |            4 |   0.15 |
-| 110.862 |            3 |    0.2 |
-| 110.208 |            7 |   0.25 |
+#+RESULTS: FLUTTER-baseline
+| Num. Modes | flutter Nastran | flutter GAFs |
+|------------+-----------------+--------------|
+|          6 |         173.027 |          173 |
+|         10 |         164.922 |          165 |
+|         15 |         169.786 |        169.7 |
+|         25 |         170.423 |        170.4 |
 
-#+RESULTS: FLUTTER-shift_conm2s_tailless25
-| flutter | flutter_mode | factor |
-|---------+--------------+--------|
-| 170.423 |            3 |      0 |
-| 162.767 |            3 |  -0.05 |
-| 156.634 |            3 |   -0.1 |
-| 151.539 |            3 |  -0.15 |
-| 147.136 |            3 |   -0.2 |
-| 143.273 |            3 |  -0.25 |
-| 180.696 |            3 |   0.05 |
-|  197.31 |            3 |    0.1 |
-| 259.569 |           10 |   0.15 |
-| 240.116 |           10 |    0.2 |
-| 116.035 |            3 |   0.25 |
-
-#+RESULTS: FLUTTER-shift_conm2s_tailless15
-| flutter | flutter_mode | factor |
-|---------+--------------+--------|
-| 169.786 |            3 |      0 |
-| 162.301 |            3 |  -0.05 |
-| 156.583 |            3 |   -0.1 |
-| 151.854 |            3 |  -0.15 |
-| 147.836 |            3 |   -0.2 |
-| 144.325 |            3 |  -0.25 |
-| 180.129 |            3 |   0.05 |
-| 199.343 |            3 |    0.1 |
-| 236.438 |            4 |   0.15 |
-| 250.744 |           10 |    0.2 |
-| 246.491 |           10 |   0.25 |
-
-#+RESULTS: FLUTTER-shift_conm2s_tailless10
-| flutter | flutter_mode | factor |
-|---------+--------------+--------|
-| 164.922 |            3 |      0 |
-| 158.647 |            3 |  -0.05 |
-| 153.404 |            3 |   -0.1 |
-| 149.115 |            3 |  -0.15 |
-| 145.303 |            3 |   -0.2 |
-|  141.99 |            3 |  -0.25 |
-| 172.945 |            3 |   0.05 |
-| 184.344 |            3 |    0.1 |
-|  204.43 |            3 |   0.15 |
-| 281.528 |           10 |    0.2 |
-| 279.344 |           10 |   0.25 |
-
-
-
-*** Masses shifted -0.15%
-#+NAME: VgVf-shift_conm2s_tailless40_3
-#+begin_src python :session py1 :results value file  :exports results 
+#+NAME: VgVfref-CHORD_EXTENSION_tailless25_0
+#+begin_src python  :results value file  :exports results 
   fig1 = f"./img/{name}.png"
-  results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 25),
-                                                        ylim_damping=[-0.04, 0.02],
-                                                        ylim_freq=[0.1, 5.8],
+  results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 16),
+                                                        ylim_damping=[-0.02, 0.03],
+                                                        ylim_freq=[0.2, 4.4],
                                                         legend=True)
   #<<savefig(figname=fig1)>>
   plt.savefig(fig1)
@@ -285,118 +283,40 @@
   fig1
 #+end_src
 
-#+RESULTS: VgVf-shift_conm2s_tailless40_3
-[[file:./img/VgVf-shift_conm2s_tailless40_3.png]]
-
-#+RESULTS: VgVf-shift_conm2s_tailless15_3
-[[file:./img/VgVf-shift_conm2s_tailless15_3.png]]
-
-*** Masses shifted +0.1%
-#+NAME: VgVf-shift_conm2s_tailless15_7
-#+begin_src python :session py1 :results value file  :exports results 
-  fig1 = f"./img/{name}.png"
-  results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 25),
-                                                        ylim_damping=[-0.04, 0.02],
-                                                        ylim_freq=[0.1, 5.8],
-                                                        legend=True)
-  #<<savefig(figname=fig1)>>
-  plt.savefig(fig1)
-  #plt.close()
-  fig1
-#+end_src
-
-#+RESULTS: VgVf-shift_conm2s_tailless15_7
-[[file:./img/VgVf-shift_conm2s_tailless15_7.png]]
-
-*** Masses shifted +0.2%
-#+NAME: VgVf-shift_conm2s_tailless15_9
-#+begin_src python :session py1 :results value file  :exports results 
-  fig1 = f"./img/{name}.png"
-  results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 25),
-                                                        ylim_damping=[-0.04, 0.02],
-                                                        ylim_freq=[0.1, 5.8],
-                                                        legend=True)
-  #<<savefig(figname=fig1)>>
-  plt.savefig(fig1)
-  #plt.close()
-  fig1
-#+end_src
-
-#+RESULTS: VgVf-shift_conm2s_tailless15_9
-[[file:./img/VgVf-shift_conm2s_tailless15_9.png]]
+#+RESULTS: VgVfref-CHORD_EXTENSION_tailless25_0
+[[file:./img/VgVfref-CHORD_EXTENSION_tailless25_0.png]]
 
 
-** Parametric aerodynamic placement
-#+NAME: FLUTTER-shift_panels_tailless15
-#+begin_src python  :results raw :exports results
-  df_ = results_df[name.split("-")[-1]]
-  df_ = df_.rename(columns={"xlabel": "factor"})
-  df_['flutter_mode']+=1
-  #df_["factor"] = [0.75, 0.9, 1., 1.1, 1.2]
-  tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
-#+end_src
+** Flutter via GAFS
+#+CAPTION: GAFs
+#+ATTR_LATEX: :width 0.7\textwidth
+[[./img/GAFs5x5.pdf]]
 
-#+RESULTS: FLUTTER-shift_panels_tailless15
-| flutter | flutter_mode | factor |
-|---------+--------------+--------|
-| 172.617 |            4 |  -0.25 |
-| 173.109 |            4 |   -0.2 |
-| 172.351 |            3 |  -0.15 |
-| 171.465 |            3 |   -0.1 |
-| 169.786 |            3 |      0 |
-| 168.222 |            3 |    0.1 |
-|  167.49 |            3 |   0.15 |
-| 166.837 |            3 |    0.2 |
-| 166.206 |            3 |   0.25 |
+#+CAPTION: Root locus
+#+ATTR_LATEX: :width 0.9\textwidth
+[[./img/root_locus.pdf]]
 
-#+RESULTS: FLUTTER-shift_panels_tailless25
-| flutter | flutter_mode | factor |
-|---------+--------------+--------|
-| 175.832 |            3 |  -0.25 |
-| 174.661 |            3 |   -0.2 |
-| 173.519 |            3 |  -0.15 |
-| 172.435 |            3 |   -0.1 |
-| 170.423 |            3 |      0 |
-| 168.685 |            3 |    0.1 |
-| 167.887 |            3 |   0.15 |
-| 167.071 |            3 |    0.2 |
-| 166.447 |            3 |   0.25 |
-
-#+RESULTS: FLUTTER-shift_panels_tailless10
-| flutter | flutter_mode | factor |
-|---------+--------------+--------|
-| 168.873 |            3 |  -0.25 |
-| 167.962 |            3 |   -0.2 |
-|  167.14 |            3 |  -0.15 |
-| 166.373 |            3 |   -0.1 |
-| 164.922 |            3 |      0 |
-| 163.647 |            3 |    0.1 |
-| 163.091 |            3 |   0.15 |
-| 162.559 |            3 |    0.2 |
-| 162.069 |            3 |   0.25 |
+#+CAPTION: Vg-Vf
+#+ATTR_LATEX: :width 0.99\textwidth
+[[./img/vgvf.pdf]]
 
 
-
-#+NAME: VgVf-CHORD_EXTENSION_tailless25_4
-#+begin_src python :session py1 :results value file  :exports results 
-  fig1 = f"./img/{name}.png"
-  results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 20),
-                                                        ylim_damping=[-0.04, 0.02],
-                                                        ylim_freq=[0.1, 7],
-                                                        legend=True)
-  #<<savefig(figname=fig1)>>
-  plt.savefig(fig1)
-  #plt.close()
-  fig1
-#+end_src
+\newpage
+* Parametric analysis for flutter relief
+:PROPERTIES:
+:header-args: :var name=(org-element-property :name (org-element-context)) :session py1
+:END:
 
 
 ** Parametric strut-stretching
+A Factor $\alpha$ is applied to the aerodynamic chord along the strut, while the thickness to chord ratio of the airfoils is kept constant. -> structural model scaled accordingly.
+
 #+NAME: FLUTTER-CHORD_EXTENSION_tailless25
-#+begin_src python  :results raw :exports results
+#+begin_src python :session py1 :results raw :exports results
   df_ = results_df[name.split("-")[-1]]
   df_ = df_.rename(columns={"xlabel": "factor"})
   df_['flutter_mode']+=1
+  df_ = df_.iloc[1:-1] 
   #df_["factor"] = [0.75, 0.9, 1., 1.1, 1.2]
   tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
 #+end_src
@@ -404,36 +324,15 @@
 #+RESULTS: FLUTTER-CHORD_EXTENSION_tailless25
 | flutter | flutter_mode | factor |
 |---------+--------------+--------|
-| 159.745 |            5 |    0.7 |
 | 152.665 |            5 |   0.85 |
 | 170.423 |            3 |      1 |
 | 203.342 |            3 |    1.1 |
 | 193.152 |           10 |    1.2 |
-| 176.527 |           10 |    1.3 |
-
-#+RESULTS: FLUTTER-CHORD_EXTENSION_tailless15
-| flutter | flutter_mode | factor |
-|---------+--------------+--------|
-| 162.387 |            5 |    0.7 |
-| 152.948 |            5 |   0.85 |
-| 169.786 |            3 |      1 |
-| 203.007 |            3 |    1.1 |
-| 183.747 |           10 |    1.2 |
-| 174.885 |           10 |    1.3 |
-
-#+RESULTS: FLUTTER-CHORD_EXTENSION_tailless10
-| flutter | flutter_mode | factor |
-|---------+--------------+--------|
-| 159.953 |            5 |    0.7 |
-| 147.295 |            5 |   0.85 |
-| 164.922 |            3 |      1 |
-| 193.728 |            3 |    1.1 |
-| 193.397 |           10 |    1.2 |
-| 183.021 |           10 |    1.3 |
 
 
+*** Factor 0.85
 #+NAME: VgVf-CHORD_EXTENSION_tailless25_0
-#+begin_src python :session py1 :results value file  :exports results 
+#+begin_src python  :results value file  :exports results 
   fig1 = f"./img/{name}.png"
   results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 20),
                                                         ylim_damping=[-0.07, 0.03],
@@ -448,117 +347,116 @@
 #+RESULTS: VgVf-CHORD_EXTENSION_tailless25_0
 [[file:./img/VgVf-CHORD_EXTENSION_tailless25_0.png]]
 
+*** Factor 1.1
 
-* Introduction
-
-* Structural and aerodynamic model 
-- Framework in place to map data between structural and aerodynamic models
-- Parameterised Nastran model for the strut in order to increase flutter.  
-- Current mismatch in strut-wing attachment point between aerodynamic mesh and structural model.
-- Aerodynamic mesh deformed with modal shapes from in-house Nastran post-processor. 
-- Steady CFD simulations up-and-running; flutter simulations in SU2 pending.
-  
-#+CAPTION: Combined models from ONERA (CFD mesh) and and POLIMI (panels representation from structural model)
-#+ATTR_LATEX: :width 0.85\textwidth 
-[[./img/su2_polimi-ref.png]]
-
-\newpage
-** CFD steady simulations in SU2
-
-SU2 mesh produced from ONERA model by our colleagues. Comparisons carried out for RANS simulations. We use Euler solvers for flutter and the following steady simulations are reasonable.   
-#+CAPTION: Cp field, View 1
-#+ATTR_LATEX: :width 0.7\textwidth 
-[[./img/su2_steady-cp1.png]]
-
-#+CAPTION: Cp field, , View 2
-#+ATTR_LATEX: :width 0.7\textwidth 
-[[./img/su2_steady-cp2.png]]
-
-\newpage
-** Modal shapes from Nastran in a clamped configuration
-Process built to create modal shapes:
-- Run Nastran 103 solution.
-- Read the beam and rigid connectors (RBE2s) positions from .bdf file and corresponding displacements from .op2 file.
-- Select a number of chordwise divisions and build the data matrix of locations and displacements.
-- Create Paraview file from data.
-  
-#+CAPTION: Modal shape 1 
-#+ATTR_LATEX: :width 0.75\textwidth 
-[[./img/polimi-M0.png]]
-
-#+CAPTION: Modal shape 2
-#+ATTR_LATEX: :width 0.75\textwidth 
-[[./img/polimi-M1.png]]
-
-#+CAPTION: Modal shape 3
-#+ATTR_LATEX: :width 0.75\textwidth 
-[[./img/polimi-M2.png]]
-
-#+CAPTION: Modal shape 4
-#+ATTR_LATEX: :width 0.75\textwidth :placement [!htpb]
-[[./img/polimi-M3.png]]
-
-\newpage
-** Mesh deformation in SU2
-
-We deform the initial SU2 mesh with the modal shapes data previously described; with this we can perform a flutter solution via a Harmonic Balanced solver.
-
-#+CAPTION: Deformed SU2 mesh for flutter analysis
-#+ATTR_LATEX: :width 0.95\textwidth
-#+ATTR_ORG: :width 100
-[[./img/ONERA_M1.png]]
-
-* Baseline Flutter analysis 
-
-- Cruise analysis ($U_\infty = 252.8 m/s$ $M_\infty = 0.79$, $Altitude = 7000 m$)
-- Flutter speed:  \approx 171 m/s (33% below cruise speed)
-- Design approaches to increase flutter:
-  - Shifting of panels
-  - Movement of masses
-  - Change stiffness
-
-The following Vg-Vf and root-locus plots were produced for the base-line model:
-#+NAME: baseline_flutter_vgvf
-#+begin_src python :session py1 :results value file  :exports results :var name=(org-element-property :name (org-element-context))
+#+NAME: VgVf-CHORD_EXTENSION_tailless25_3
+#+begin_src python  :results value file  :exports results 
   fig1 = f"./img/{name}.png"
-  results["shift_conm2sLM25_0"]['sol145'].obj.plot_vg_vf(modes=range(1, 15),
-                                                         ylim_damping=[-0.15, 0.03],
-                                                         ylim_freq=[0.75, 5],
-                                                         legend=True)
+  results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 20),
+                                                        ylim_damping=[-0.07, 0.03],
+                                                        ylim_freq=[0.1, 6.5],
+                                                        legend=True)
+  #<<savefig(figname=fig1)>>
+  plt.savefig(fig1)
+  #plt.close()
+  fig1
+#+end_src
+
+\newpage
+** Parametric lumped masses
+
+#+NAME: FLUTTER-shift_conm2s_tailless25
+#+begin_src python  :results raw :exports results
+  df_ = results_df[name.split("-")[-1]]
+  df_ = df_.rename(columns={"xlabel": "factor"})
+  df_['flutter_mode']+=1
+  df_ = df_.iloc[:-1]
+  #df_["factor"] = [0.75, 0.9, 1., 1.1, 1.2]
+  tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
+#+end_src
+
+#+RESULTS: FLUTTER-shift_conm2s_tailless25
+
+*** Masses shifted -0.15%
+#+NAME: VgVf-shift_conm2s_tailless25_0
+#+begin_src python :session py1 :results value file  :exports results 
+  fig1 = f"./img/{name}.png"
+  results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 25),
+                                                        ylim_damping=[-0.04, 0.02],
+                                                        ylim_freq=[0.1, 5.8],
+                                                        legend=True)
   #<<savefig(figname=fig1)>>
   plt.savefig(fig1)
   plt.close()
   fig1
-  #+end_src
-
-#+CAPTION: Vg-Vf graph baseline configuration 
-#+ATTR_LATEX: :width 0.75\textwidth 
-#+RESULTS: baseline_flutter_vgvf
-[[file:./img/baseline_flutter_vgvf.png]]
-
-#+NAME: baseline_flutter_rootlocus
-#+caption: Root-locus graphs
-#+begin_src python :session py1 :results value file  :exports results :var name=(org-element-property :name (org-element-context))
-  #fig = plt.figure()
-  #axes = fig.add_subplot(111)
+#+end_src
+*** Masses shifted +0.1%
+#+NAME: VgVf-shift_conm2s_tailless15_7
+#+begin_src python :session py1 :results value file  :exports results 
   fig1 = f"./img/{name}.png"
-  results["shift_conm2sLM30_0"]['sol145'].obj.plot_root_locus(#fig=fig,axes=axes,
-                                                              modes=range(1, 15),
-                                                              xlim=[-4, 0.5],
-                                                              legend=False, show=False)
+  results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 25),
+                                                        ylim_damping=[-0.04, 0.02],
+                                                        ylim_freq=[0.1, 5.8],
+                                                        legend=True)
   #<<savefig(figname=fig1)>>
   plt.savefig(fig1)
   plt.close()
   fig1
 #+end_src
 
-#+CAPTION: Root-locus graph baseline configuration
-#+ATTR_LATEX: :width 0.7\textwidth
-#+RESULTS: baseline_flutter_rootlocus
-[[file:./img/baseline_flutter_rootlocus.png]]
+*** Masses shifted +0.2%
+#+NAME: VgVf-shift_conm2s_tailless15_9
+#+begin_src python :session py1 :results value file  :exports results 
+  fig1 = f"./img/{name}.png"
+  results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 25),
+                                                        ylim_damping=[-0.04, 0.02],
+                                                        ylim_freq=[0.1, 5.8],
+                                                        legend=True)
+  #<<savefig(figname=fig1)>>
+  plt.savefig(fig1)
+  plt.close()
+  fig1
+#+end_src
 
 \newpage
-* Parametric assessment
+** Parametric aerodynamic placement
+#+NAME: FLUTTER-shift_panels_tailless25
+#+begin_src python  :results raw :exports results
+  df_ = results_df[name.split("-")[-1]]
+  df_ = df_.rename(columns={"xlabel": "factor"})
+  df_['flutter_mode']+=1
+  #df_["factor"] = [0.75, 0.9, 1., 1.1, 1.2]
+  tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
+#+end_src
+
+#+RESULTS: FLUTTER-shift_panels_tailless25
+| flutter | flutter_mode | factor |
+|---------+--------------+--------|
+| 175.832 |            3 |  -0.25 |
+| 174.661 |            3 |   -0.2 |
+| 173.519 |            3 |  -0.15 |
+| 172.435 |            3 |   -0.1 |
+| 170.423 |            3 |      0 |
+| 168.685 |            3 |    0.1 |
+| 167.887 |            3 |   0.15 |
+| 167.071 |            3 |    0.2 |
+| 166.447 |            3 |   0.25 |
+
+
+#+NAME: VgVf-CHORD_EXTENSION_tailless25_4
+#+begin_src python :session py1 :results value file  :exports results 
+  fig1 = f"./img/{name}.png"
+  results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 20),
+                                                        ylim_damping=[-0.04, 0.02],
+                                                        ylim_freq=[0.1, 7],
+                                                        legend=True)
+  #<<savefig(figname=fig1)>>
+  plt.savefig(fig1)
+  plt.close()
+  fig1
+#+end_src
+
+* COMMENT Parametric assessment old
 ** Masses shifting
 
 In the next table the variation of flutter is shown as we move the masses on the strut along the chord.  
