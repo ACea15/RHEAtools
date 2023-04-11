@@ -1,4 +1,4 @@
-#+TITLE: High Fidelity Flutter with a Parametric Assessment of a Strut-Braced Wing Aircraft
+#+TITLE: High Fidelity Flutter Assessment of a Strut-Braced Wing Aircraft
 #+AUTHOR: Alvaro Cea and Rafael Palacios
 #+OPTIONS: toc:nil
 #+LATEX_HEADER: \usepackage[margin=1in]{geometry}
@@ -172,8 +172,8 @@
 #+ATTR_LATEX: :width 0.75\textwidth 
 [[./img/SBW_challenges.png]]
 
-* Theory
-** Harmonic balanced method
+* Methods
+** Frequency domain aerodynamics
 ** Fluid-structure interpolation
 ** Flutter P-K method
 * Computational process and tools
@@ -214,7 +214,7 @@ Process built to create modal shapes:
 \newpage
 ** CFD steady simulations in SU2
 
-SU2 mesh produced from ONERA model by our colleagues. Comparisons carried out for RANS simulations. We use Euler solvers for flutter and the following steady simulations are reasonable.
+SU2 mesh produced from ONERA model by our partners at Strathclyde. Comparisons carried out for RANS simulations. We use Euler solvers for flutter and the following steady simulations are reasonable.
 
 #+CAPTION: Cp field, mode one, front view
 #+ATTR_LATEX: :width 0.99\textwidth 
