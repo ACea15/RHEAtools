@@ -201,6 +201,14 @@ Process built to create modal shapes:
 
 \newpage
 ** Mesh deformation of modal shapes
+#+CAPTION: Deformed mesh (in blue), aerodynamic panels (red-green) and reference mesh for mode one
+#+ATTR_LATEX: :width 0.99\textwidth 
+[[./img/M0-15A-3D_Panels.png]]
+
+#+CAPTION: 
+#+ATTR_LATEX: :width 0.99\textwidth 
+[[./img/modes.pdf]]
+
 
 #+CAPTION: Deformed mesh (in blue), aerodynamic panels (red-green) and reference mesh for mode one
 #+ATTR_LATEX: :width 0.99\textwidth 
@@ -214,7 +222,7 @@ Process built to create modal shapes:
 \newpage
 ** CFD steady simulations in SU2
 
-SU2 mesh produced from ONERA model by our partners at Strathclyde. Comparisons carried out for RANS simulations. We use Euler solvers for flutter and the following steady simulations are reasonable.
+SU2 meshh produced from ONERA model by our partners at Strathclyde. Comparisons carried out for RANS simulations. We use Euler solvers for flutter and the following steady simulations are reasonable.
 
 #+CAPTION: Cp field, mode one, front view
 #+ATTR_LATEX: :width 0.99\textwidth 
@@ -282,7 +290,7 @@ SU2 mesh produced from ONERA model by our partners at Strathclyde. Comparisons c
 
 
 ** Flutter via GAFS
-#+CAPTION: GAFs of the first 5 modes, reduced frequencies from 0 to 1, imaginary and real parts
+#+CAPTION: GAFs of the first 5 modes, reduced frequencies from 0 to 1, imaginary (circles) and real (squares) parts.
 #+ATTR_LATEX: :width 0.8\textwidth
 [[./img/GAFs5x5.pdf]]
 
@@ -321,6 +329,7 @@ A Factor, $\alpha$, is applied to the aerodynamic chord along the strut, while t
   tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
 #+end_src
 
+#+NAME: table_flutter_chordextension
 #+CAPTION: Flutter assessment when changing the strut chord
 #+RESULTS: FLUTTER-CHORD_EXTENSION_tailless25
 | flutter | flutter_mode | factor |
@@ -463,7 +472,6 @@ A Factor, $\alpha$, is applied to the aerodynamic chord along the strut, while t
 [[file:./img/VgVf-shift_conm2s_tailless25_9.png]]
 
 
-
 \newpage
 ** Parametric aerodynamic placement
 #+NAME: FLUTTER-shift_panels_tailless25
@@ -525,10 +533,9 @@ A Factor, $\alpha$, is applied to the aerodynamic chord along the strut, while t
 #+RESULTS: VgVf-shift_panels_tailless25_7
 [[file:./img/VgVf-shift_panels_tailless25_7.png]]
 
-* Further work
-??
+* Conclusions
 
-- Couple the parametric tool with optimizer to search for a sensible combination that gets the flutter speed above the flight-envelope. 
-- Plug the model into SHARPy to assess geometrical nonlinear effects.
-- Comparisons with high-fidelity flutter calculations in SU2, i.e. transonic effects.
+- We have just carried out a preliminary parametric analysis around the possibilities to increase 
+
+  
   
