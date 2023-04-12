@@ -2,6 +2,25 @@
 #+AUTHOR: Alvaro Cea and Rafael Palacios
 #+OPTIONS: toc:nil
 #+LATEX_HEADER: \usepackage[margin=1in]{geometry}
+#+LATEX_HEADER: \usepackage[margin=1in]{geometry}
+#+LATEX_HEADER: \usepackage[utf8]{inputenc}
+#+LATEX_HEADER: \usepackage{graphicx}
+#+LATEX_HEADER: \usepackage{amsmath}
+#+LATEX_HEADER: \usepackage[version=4]{mhchem}
+#+LATEX_HEADER: \usepackage{siunitx}
+#+LATEX_HEADER: \usepackage{longtable,tabularx}
+#+LATEX_HEADER: \setlength\LTleft{0pt} 
+#+LATEX_HEADER: \usepackage{caption}
+#+LATEX_HEADER: \usepackage{subcaption}
+#+LATEX_HEADER: \usepackage{comment}
+#+LATEX_HEADER: \usepackage{lineno} 
+#+LATEX_HEADER: \usepackage{setspace}
+#+LATEX_HEADER: \doublespacing
+#+LATEX_HEADER: \usepackage[colorinlistoftodos,textsize=tiny]{todonotes}
+#+LATEX_HEADER: \usepackage{algorithm}
+#+LATEX_HEADER: \usepackage{algpseudocode}
+#+LATEX_HEADER: \usepackage{amssymb}
+#+LATEX_HEADER: \usepackage{hyperref}
 
 #+begin_comment
 #+LATEX_HEADER: \let\oldsection\section
@@ -44,6 +63,7 @@
 * Load modules :noexport:
 #+begin_src python :session py1 :results none :var dir1=(print local_root)
   import sys
+  import numpy as np
   sys.path.append(dir1)
   import src.parametric_analysis
   import plotly.express as px
@@ -51,6 +71,7 @@
   import pathlib
   import matplotlib.pyplot as plt
   from tabulate import tabulate
+  from pyNastran.op2.op2 import OP2
 #+end_src
 * Boilerplate src :noexport:
 #+name: pd2org
@@ -91,41 +112,16 @@
       return file_paths, file_names
 
   main_folder = '/'.join(([si for si in sys.path if "RHEAtools" in si][0].split('/')[:[si for si
-                            in sys.path if "RHEAtools" in si][0].split('/').index("RHEAtools")+1]))
-  main_folder += "/data/nastran_studies/parametric_analysis078M"
-  #main_folder += "/data/out/parametric_analysis078M"
+                                                                                       in sys.path if "RHEAtools" in si][0].split('/').index("RHEAtools")+1]))
+  #main_folder += "/data/nastran_studies/parametric_analysis078M"
+  file_103 = main_folder + "/data/in/SOL103tailless/polimi-103cam.op2"
+  op2 = OP2()
+  # op2.set_additional_matrices_to_read({b'OPHP': False, b'OPHKS':False})
+  op2.read_op2(file_103)
+  eig1 = op2.eigenvectors[1]
+  natural_frequencies = [2*np.pi * cyc for cyc in eig1.mode_cycles]
+  main_folder += "/data/out/parametric_analysis078M"
   file_paths, file_names = get_files(main_folder)
-  #main_folder = "/home/acea/pCloudDrive/Imperial/PostDoc/models_POLIMI/"
-  #main_folder = "/Users/acea/pCloud Drive/Imperial/PostDoc/models_POLIMI/"
-  #files = []
-  # files += [f"shift_conm2s_M15_{xi}" for xi in range(11)]
-  # files += [f"shift_conm2s_M25_{xi}" for xi in range(11)]
-  # files += [f"shift_conm2s_LM15_{xi}" for xi in range(11)]
-  # files += [f"shift_conm2s_LM25_{xi}" for xi in range(11)]
-  # #files += [f"shift_conm2s_oldM8_{xi}" for xi in range(11)]
-  # files += [f"shift_conm2s_oldM15_{xi}" for xi in range(11)]
-  # files += [f"shift_conm2s_oldM25_{xi}" for xi in range(11)]
-
-  # # files += [f"shift_panels3_{xi}" for xi in [-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]]
-  # files += [f"shift_panels_M15_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
-  # files += [f"shift_panels_M25_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
-  # files += [f"shift_panels_LM15_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
-  # files += [f"shift_panels_LM25_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
-  # #files += [f"shift_panels_oldM8_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
-  # files += [f"shift_panels_oldM15_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
-  # files += [f"shift_panels_oldM25_{xi}" for xi in range(len([-0.25, -0.2, -0.15, -0.1, 0.,  0.1, 0.15, 0.2, 0.25]))]
-
-  # ######
-  #files += [f"CHORD_EXTENSION_tailless10_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
-  # files += [f"CHORD_EXTENSION_tailless15_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2]))]
-  # files += [f"CHORD_EXTENSION_tailless25_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2]))]
-
-  # files += [f"CHORD_EXTENSION_M25_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
-  # files += [f"CHORD_EXTENSION_LM15_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
-  # files += [f"CHORD_EXTENSION_LM25_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
-  # #files += [f"CHORD_EXTENSION_oldM8_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
-  # files += [f"CHORD_EXTENSION_oldM15_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
-  # files += [f"CHORD_EXTENSION_oldM25_{xi}" for xi in range(len([0.7, 0.85, 1., 1.1, 1.2, 1.3]))]
 
   collector_list = ['sol145']
   collector = {ci: None for ci in collector_list}
@@ -173,9 +169,7 @@
 [[./img/SBW_challenges.png]]
 
 * Methods
-** Frequency domain aerodynamics
-** Fluid-structure interpolation
-** Flutter P-K method
+\input{methods.tex}
 * Computational process and tools
 ** SU2 implementation
 ** Mapping and deformation of aerodynamic mesh
@@ -190,24 +184,64 @@ Process built to create modal shapes:
 ** Parametric Nastran models and flutter
 ** Main interface
 * Structural and aerodynamic models
+
+Fig. [[combined_models]] shows these two models
+
 - Framework in place to map data between structural and aerodynamic models
 - Parameterised Nastran model for the strut in order to increase flutter.  
-- Current mismatch in strut-wing attachment point between aerodynamic mesh and structural model.
-- Aerodynamic mesh deformed with modal shapes from in-house Nastran post-processor. 
-  
+A mismatch in the strut-wing attachment point between aerodynamic mesh and structural model 
+
+#+NAME: combined_models
 #+CAPTION: Combined models from ONERA (CFD mesh) and and POLIMI (panels representation from structural model)
 #+ATTR_LATEX: :width 0.85\textwidth 
 [[./img/su2_polimi-ref.png]]
 
+
+#+NAME: Model-natural_freqs
+#+begin_src python  :results raw :exports results :session py1
+  modes_  = range(10)
+  df_  = pd.DataFrame({'Mode': modes_, 'Natural freqs. [rads/s]':natural_frequencies[:len(modes_)]})
+  #df_ = df_.rename(columns={"xlabel": "factor"})
+  #df_['flutter_mode']+=1
+  #df_["factor"] = [0.75, 0.9, 1., 1.1, 1.2]
+  tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
+  #plt.plot(modes_influtter, flutter_speeds)
+#+end_src
+
+
+[[modal_freqs]]
+#+CAPTION: First ten natutal frequencies
+#+NAME: modal_freqs
+#+RESULTS: Model-natural_freqs
+| Mode | Natural freqs. [rads/s] |
+|------+-------------------------|
+|    0 |                 4.79648 |
+|    1 |                 5.08188 |
+|    2 |                 10.6141 |
+|    3 |                 11.4289 |
+|    4 |                 12.0282 |
+|    5 |                 12.6861 |
+|    6 |                 17.4762 |
+|    7 |                 18.7355 |
+|    8 |                 23.4287 |
+|    9 |                 23.5248 |
+
+
+#+CAPTION: First five structural modes
+#+NAME: modal_shapes
+#+ATTR_LATEX: :width 0.99\textwidth 
+[[./img/modes.pdf]]
+
+
 \newpage
 ** Mesh deformation of modal shapes
+
+- Aerodynamic mesh deformed with modal shapes from in-house Nastran post-processor. 
+The mesh deformation of the aerodynamic mesh to  has posed serious challenges.
+
 #+CAPTION: Deformed mesh (in blue), aerodynamic panels (red-green) and reference mesh for mode one
 #+ATTR_LATEX: :width 0.99\textwidth 
 [[./img/M0-15A-3D_Panels.png]]
-
-#+CAPTION: 
-#+ATTR_LATEX: :width 0.99\textwidth 
-[[./img/modes.pdf]]
 
 
 #+CAPTION: Deformed mesh (in blue), aerodynamic panels (red-green) and reference mesh for mode one
@@ -270,6 +304,7 @@ SU2 meshh produced from ONERA model by our partners at Strathclyde. Comparisons 
 |         15 |         169.786 |        169.7 |
 |         25 |         170.423 |        170.4 |
 
+
 #+NAME: VgVfref-shift_conm2s_tailless25_0
 #+begin_src python  :results value file  :exports results 
   fig1 = f"./img/{name}.png"
@@ -318,6 +353,7 @@ SU2 meshh produced from ONERA model by our partners at Strathclyde. Comparisons 
 
 
 A Factor, $\alpha$, is applied to the aerodynamic chord along the strut, while the thickness to chord ratio of the airfoils is kept constant. The structural model is scaled accordingly, increasing the beam area by $\alpha^2$ and the moment of inertia by $\alpha^4$.
+In [[tab:flutter_chordextension]] we see 
 
 #+NAME: FLUTTER-CHORD_EXTENSION_tailless25
 #+begin_src python :session py1 :results raw :exports results
@@ -329,7 +365,7 @@ A Factor, $\alpha$, is applied to the aerodynamic chord along the strut, while t
   tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
 #+end_src
 
-#+NAME: table_flutter_chordextension
+#+NAME: tab:flutter_chordextension
 #+CAPTION: Flutter assessment when changing the strut chord
 #+RESULTS: FLUTTER-CHORD_EXTENSION_tailless25
 | flutter | flutter_mode | factor |
