@@ -94,9 +94,13 @@
 
 * Diagram                                                          :noexport:
 
-#+begin_src plantuml
-file file  
+#+begin_src plantuml :file img/process.png
+file file
 #+end_src
+
+#+RESULTS:
+[[file:img/process.png]]
+
 * Read results :noexport:
 :PROPERTIES:
 :header-args: :eval never-export :exports none
@@ -119,15 +123,15 @@ file file
   main_folder = '/'.join(([si for si in sys.path if "RHEAtools" in si][0].split('/')[:[si for si
                                                                                        in sys.path if "RHEAtools" in si][0].split('/').index("RHEAtools")+1]))
   #main_folder += "/data/nastran_studies/parametric_analysis078M"
-  #file_103 = main_folder + "/data/in/SOL103tailless/polimi-103cam.op2"
-  file_103 = main_folder + "/data/nastran_studies/SOL103tailless/polimi-103cam.op2"
+  file_103 = main_folder + "/data/in/SOL103tailless/polimi-103cam.op2"
+  #file_103 = main_folder + "/data/nastran_studies/SOL103tailless/polimi-103cam.op2"
   op2 = OP2()
   # op2.set_additional_matrices_to_read({b'OPHP': False, b'OPHKS':False})
   op2.read_op2(file_103)
   eig1 = op2.eigenvectors[1]
   natural_frequencies = [2*np.pi * cyc for cyc in eig1.mode_cycles]
-  main_folder += "/data/nastran_studies/parametric_analysis078M"
-  #main_folder += "/data/out/parametric_analysis078M"
+  #main_folder += "/data/nastran_studies/parametric_analysis078M"
+  main_folder += "/data/out/parametric_analysis078M"
   file_paths, file_names = get_files(main_folder)
 
   collector_list = ['sol145']
@@ -178,6 +182,7 @@ file file
 * Methods
 # \input{methods.tex}
 * Computational process and tools
+<<sec:processes>>
 ** SU2 implementation
 ** Mapping and deformation of aerodynamic mesh
 Process built to create modal shapes:
@@ -190,20 +195,16 @@ Process built to create modal shapes:
 [[./img/interpolation.pdf]]
 ** Parametric Nastran models and flutter
 ** Main interface
+\newpage
 * Structural and aerodynamic models
-
-Fig. [[combined_models]] shows these two models
-
-- Framework in place to map data between structural and aerodynamic models
-- Parameterised Nastran model for the strut in order to increase flutter.  
-A mismatch in the strut-wing attachment point between aerodynamic mesh and structural model 
+Two different models have been combined for the aeroelastic analysis and are overlapped in Fig. [[combined_models]]. The structural model provided by PoliMi is based on beams to which lifting panels are attached; the high fidelity aerodynamic mesh was provided by ONERA and our partners at Strathclyde adapted to the SU2 mesh used herein. The mismatch in the strut-wing attachment point is not negligible, however, we believe this will not be critical in the mapping of deformations from the panels to the mesh using radial-basis functions that smooth out discrepancies. It is due further developments in the structural model while the mesh was not updated.  
 
 #+NAME: combined_models
-#+CAPTION: Combined models from ONERA (CFD mesh) and and POLIMI (panels representation from structural model)
+#+CAPTION: Combined models from ONERA (CFD mesh) and and PoliMi (panels representation from structural model)
 #+ATTR_LATEX: :width 0.85\textwidth 
 [[./img/su2_polimi-ref.png]]
 
-
+The first ten structural natural frequencies are given in Table [[modal_freqs]]. Note the existence of symmetric and anti-symmetric modes in the wing with very close frequencies. These are depicted in Fig. [[modal_shapes_panels]].  
 #+NAME: Model-natural_freqs
 #+begin_src python :session py1 :results raw :exports results 
   modes_  = range(1, 11)
@@ -216,7 +217,7 @@ A mismatch in the strut-wing attachment point between aerodynamic mesh and struc
 #+end_src
 
 #+NAME: modal_freqs
-#+CAPTION: First ten natutal frequencies
+#+CAPTION: First ten natutal frequencies of the win-fuselage structural model. 
 #+RESULTS: Model-natural_freqs
 | Mode | Natural freqs. [rads/s] |
 |------+-------------------------|
@@ -232,62 +233,76 @@ A mismatch in the strut-wing attachment point between aerodynamic mesh and struc
 |   10 |                 23.5248 |
 
 
-
-
 #+CAPTION: First five structural modes
-#+NAME: modal_shapes
+#+NAME: modal_shapes_panels
 #+ATTR_LATEX: :width 0.99\textwidth 
 [[./img/modes.pdf]]
-
+The panel shapes have been constructed from the beam-model displacements and rotations. At each panel corner there will be a radial-basis kernel mapping displacements from the panels onto the CFD moving markers (the solid boundaries of wing and strut). This is described in the following section. 
 
 \newpage
 ** Mesh deformation of modal shapes
-
-- Aerodynamic mesh deformed with modal shapes from in-house Nastran post-processor. 
-The mesh deformation of the aerodynamic mesh to  has posed serious challenges.
-
-#+CAPTION: Deformed mesh (in blue), aerodynamic panels (red-green) and reference mesh for mode one
-#+ATTR_LATEX: :width 0.99\textwidth 
-[[./img/M0-15A-3D_Panels.png]]
-
-
-#+CAPTION: Deformed mesh (in blue), aerodynamic panels (red-green) and reference mesh for mode one
-#+ATTR_LATEX: :width 0.99\textwidth 
-[[./img/M0-15A-3D_Panels.png]]
-
-#+CAPTION: Deformed mesh (in blue), aerodynamic panels (red-green) and reference mesh for mode five
-#+ATTR_LATEX: :width 0.99\textwidth 
-[[./img/M4-15A-3D_Panels.png]]
-
+With the deformation of wing and strut obtained from interpolation for each modal shape, a mesh deformation scheme within SU2 is launched in order to attain a suitable model for the CFD. It was found that while convergence of the mesh deformation routines could be achieved relatively easy by tweaking the nonlinear steps and the total number of iterations, the resulting mesh would not yield good steady simulations as explained next.
+Fig \ref{fig:Modes3D} helps to visualize and also validate the process described in Sec. [[sec:processes]]. The wing panels fall approximately in the mid-plane of the wing mesh and that remains true after deformation; the strut undergoes similar deformations in both models but it is not coincident since that is not the case in the reference models.  
+#+BEGIN_EXPORT latex
+\begin{figure}
+     \centering
+     \begin{subfigure}[b]{0.99\textwidth}
+         \centering
+         \includegraphics[width=\textwidth]{./img/M0-15A-3D_Panels.png}
+         \caption{Mode 1}
+     \end{subfigure}
+     \begin{subfigure}[b]{0.99\textwidth}
+         \centering
+         \includegraphics[width=\textwidth]{./img/M4-15A-3D_Panels.png}
+         \caption{Mode 5}
+     \end{subfigure}
+        \caption{Deformed mesh (in blue), aerodynamic panels (red-green) and reference mesh (transparent grey)}
+        \label{fig:Modes3D}
+\end{figure}
+#+END_EXPORT
 
 \newpage
 ** CFD steady simulations in SU2
-
-SU2 meshh produced from ONERA model by our partners at Strathclyde. Comparisons carried out for RANS simulations. We use Euler solvers for flutter and the following steady simulations are reasonable.
-
-#+CAPTION: Cp field, mode one, front view
-#+ATTR_LATEX: :width 0.99\textwidth 
-[[./img/M0-15A-STEADY.pdf]]
-
-#+CAPTION: Cp field, mode one, front view
-#+ATTR_LATEX: :width 1.\textwidth 
-[[./img/M4-15A-STEADY.pdf]]
-
-#+CAPTION: Cp field, mode one, front view
-#+ATTR_LATEX: :width 1.\textwidth 
-[[./img/M7-15A-STEADY.pdf]]
-
-
+Euler-based steady simulations need are solved before any harmonic balance solution is setup since the latter is based on the former and no convergence will be attain if the steady state cannot be found. As such, we performed first steady simulations around the modal shapes given by the structural mode. While major issues were not encountered for the reference case, we found serious difficulties getting sensible results after deforming the mesh. An example is Fig. [[non-convergedCFD]] which illustrates a non-converged solution of the first modal shape. 
+#+CAPTION: Non-converged CFD simulation around a deformed shape 
+#+NAME: non-convergedCFD
+#+ATTR_LATEX: :width 0.75\textwidth 
+[[./img/cfd_notworking.pdf]]
+Fixing this required the introduction various artefacts:
+- Filtering root displacements: because the structural model is clamped at the symmetry plane, but the wing and strut are attached to the fuselage, displacements, even if not visible, would be present at the attachment. A Sigmoid function was plugged into the deformation process that brings displacements to virtually zero at the attachment.
+- Making the residual criteria of the mesh deformation very small: the convergence tolerance of the linear deformation solver was set to $10^{-15}$; values below $10^{-10}$ would produce meshes where the CFD would not converge.
+- Changing the deformation technique to Inverse Volume. 
+With this, successful simulations could be obtained and Fig. \ref{fig:Modes3D} shows the pressure coefficient profile of three interesting modes, along with the solution around the reference. 
+ 
+#+BEGIN_EXPORT latex
+\begin{figure}
+     \centering
+     \begin{subfigure}[b]{0.99\textwidth}
+         \centering
+         \includegraphics[width=\textwidth]{./img/M0-15A-STEADY.pdf}
+         \caption{Mode 1}
+     \end{subfigure}
+     \begin{subfigure}[b]{0.99\textwidth}
+         \centering
+         \includegraphics[width=\textwidth]{./img/M4-15A-STEADY.pdf}
+         \caption{Mode 5}
+     \end{subfigure}
+     \begin{subfigure}[b]{0.99\textwidth}
+         \centering
+         \includegraphics[width=\textwidth]{./img/M7-15A-STEADY.pdf}
+         \caption{Mode 7}
+     \end{subfigure}     
+        \caption{Front and side views of the Cp field around the reference configuration and the modal shapes}
+        \label{fig:Modes3D}
+\end{figure}
+#+END_EXPORT
 
 \newpage
 * Baseline Flutter analysis 
 :PROPERTIES:
 :header-args: :var name=(org-element-property :name (org-element-context)) :session py1
 :END:
-
-- Cruise analysis ($U_\infty = 252.8 m/s$ $M_\infty = 0.78$, $Altitude = 7000 m$)
-- Flutter speed:  \approx 170 m/s (33% below cruise speed)
-
+The flutter analysis on the reference configuration reveals the instability is triggered before the design cruise speed: considering the flight conditions used by PoliMi in the structural sizing ($U_\infty = 252.8 m/s$ $M_\infty = 0.78$, $Altitude = 7000 m$) the flutter speed is found at  \approx 170 m/s (33% below cruise speed), as presented in Table [[tab:flutter_ref]]: a convergence analysis with the number of modes is shown as well as the mode that crosses the 0-axis thus becoming unstable. Moreover, this table displays the good agreement in the calculation by Nastran alone and our in-house algorithms, thus serving as validation.  
 #+NAME: FLUTTER-baseline
 #+begin_src python  :results raw :exports results
   modes_influtter  = [6, 10, 15, 25]
@@ -302,7 +317,8 @@ SU2 meshh produced from ONERA model by our partners at Strathclyde. Comparisons 
   #plt.plot(modes_influtter, flutter_speeds)
 #+end_src
 
-#+CAPTION: Flutter analysis calculated via direct Nastran and GAFs
+#+NAME: tab:flutter_ref
+#+CAPTION: Flutter analysis calculated via Nastran and via the output GAFs
 #+RESULTS: FLUTTER-baseline
 | Num. Modes | flutter Nastran | flutter GAFs |
 |------------+-----------------+--------------|
@@ -312,6 +328,7 @@ SU2 meshh produced from ONERA model by our partners at Strathclyde. Comparisons 
 |         25 |         170.423 |        170.4 |
 
 
+The damping and frequency evolution with velocity is used normally to present and understand the flutter results and these are depicted in Fig. [[fig:vgvf_ref_nastran]].
 #+NAME: VgVfref-shift_conm2s_tailless25_0
 #+begin_src python  :results value file  :exports results 
   fig1 = f"./img/{name}.png"
@@ -325,51 +342,49 @@ SU2 meshh produced from ONERA model by our partners at Strathclyde. Comparisons 
   fig1
 #+end_src
 
-#+CAPTION: Vg-Vf analysis in for the reference configuration
+#+NAME: fig:vgvf_ref_nastran
+#+CAPTION: Vg-Vf analysis performed in Nastran for the reference configuration
 #+ATTR_LATEX: :width 0.65\textwidth 
 #+RESULTS: VgVfref-shift_conm2s_tailless25_0
 [[file:./img/VgVfref-shift_conm2s_tailless25_0.png]]
 
-
-** Flutter via GAFS
-
-along with a smooth interpolation between the points  [[fig:gafs]]
-
+Similarly, in the analysis performed using our own PK algorithm, we start with the GAFs extracted from the DLM for the first five modes, along with a smooth interpolation between the points, as plotted in [[fig:gafs]]. They encapsulate the input/output relationship between modal displacements and forces. 
 #+NAME: fig:gafs
 #+CAPTION: GAFs of the first 5 modes, reduced frequencies from 0 to 1, imaginary (circles) and real (squares) parts.
 #+ATTR_LATEX: :width 0.8\textwidth
 [[./img/GAFs5x5.pdf]]
-
-[[fig:root_locus]]
-
-#+NAME: fig:root_locus
+Assembling Eqs. \eqref{csdhb}, we can also compute the root-locus and Vg-Vf diagrams as shown in Figs. [[fig:root_locus_ref]] and [[fig:vg_vf_ref]]. 
+#+NAME: fig:root_locus_ref
 #+CAPTION: Root locus analysis in for the reference configuration using the GAFs
 #+ATTR_LATEX: :width 0.9\textwidth
 [[./img/root_locus.pdf]]
 
-[[fig:vg_vf]]
-#+NAME: fig:vg_vf
+
+#+NAME: fig:vg_vf_ref
 #+CAPTION: Vg-Vf analysis in for the reference configuration using the GAFs
 #+ATTR_LATEX: :width 0.99\textwidth
 [[./img/vgvf.pdf]]
 
 *** CFD-enhanced analysis
+A pure solution of flutter via the Harmonic Balance proved unsuccessful due to the lack of convergence of the solvers at the frequencies needed for the solution. Likely explanations are: an implementation that is not mature enough or the fluid solvers themselves not being robust; the mesh provided that was created for pure steady solutions; the concept may exhibit complex physics outside the exact design point.      
+Precisely on this last point, our colleagues at Strathclyde have performed a parametric analysis slightly changing the flow conditions and have found the flow becomes unsteady thereby causing the failure of the steady solvers.
+# A preliminary assessment indicates a stronger shock at the strut due to the interaction with the fairing, and spanwise oscillation in the shock wave leading to buffeting.  
+\\
+It is not surprise that in industrial practice, where the complexity of the models poses the biggest challenges, the flutter analysis is still predominately based on DLM calculations --enhanced by CFD simulations when possible. We thus follow the same approach here, and improve our DLM simulations with the data from the Harmonic Balance at very low frequencies where it converged. Effectively this is adding effects such as thickness and (steady) shock waves, which are the main physics over sought by the DLM.     
 
 \newpage
 * Parametric analysis for flutter relief
 :PROPERTIES:
 :header-args: :var name=(org-element-property :name (org-element-context)) :session py1
 :END:
-- Design approaches to increase flutter:
+Since the reference design was not designed with flutter constraints and the analysis reveals severe issues, we set up to use our tools to explore possibilities enlarge the flutter margins. These are not definitive but can give good insights for future endeavours in SBW configurations.   
+The parametric assessment has included the following:
   - Increase the strut size
-  - Shifting of panels
-  - Movement of masses
-
+  - Movement of strut masses
+  - Shifting of strut aerodynamic panels
 ** Strut-stretching case
-
-
-A Factor, $\alpha$, is applied to the aerodynamic chord along the strut, while the thickness to chord ratio of the airfoils is kept constant. The structural model is scaled accordingly, increasing the beam area by $\alpha^2$ and the moment of inertia by $\alpha^4$.
-In [[tab:flutter_chordextension]] we see 
+Making a bigger strut seemed the first plausible option to improve the stability of the reference configuration. A Factor, $\alpha$, is applied to the chord dimension along the strut, while the thickness-to-chord ratio of the airfoils is kept constant. The structural model is scaled accordingly, increasing the beam area by $\alpha^2$ and the moment of inertia by $\alpha^4$.
+In [[tab:flutter_chordextension]] we can see that indeed significant improvements can be attained.
 
 #+NAME: FLUTTER-CHORD_EXTENSION_tailless25
 #+begin_src python :session py1 :results raw :exports results
@@ -391,8 +406,9 @@ In [[tab:flutter_chordextension]] we see
 | 203.342 |            3 |    1.1 |
 | 193.152 |           10 |    1.2 |
 
-
-*** Factor= 0.85
+More details into these results are provided next.
+*** Factor \alpha= 0.85
+If the strut was to be made even smaller, the flutter speed would be reduced. Fig. [[fig:vg_vf_chordextension085]] also shows that the mode that first becomes unstable changes from 3 to 5. 
 #+NAME: VgVf-CHORD_EXTENSION_tailless25_1
 #+begin_src python  :results value file  :exports results 
   fig1 = f"./img/{name}.png"
@@ -406,13 +422,14 @@ In [[tab:flutter_chordextension]] we see
   fig1
 #+end_src
 
+#+CAPTION: Vg-Vf analysis for the strut extension, \alpha = 0.85
+#+NAME: fig:vg_vf_chordextension085
 #+ATTR_LATEX: :width 0.65\textwidth 
 #+RESULTS: VgVf-CHORD_EXTENSION_tailless25_1
 [[file:./img/VgVf-CHORD_EXTENSION_tailless25_1.png]]
 
-
-*** Factor= 1.1
-
+*** Factor \alpha= 1.1
+As seen in the damping evolution of Fig. [[fig:vg_vf_chordextension11]], a 10% increase in the structural factor $\alpha$ leads to a nearly 20% rise in the flutter. 
 #+NAME: VgVf-CHORD_EXTENSION_tailless25_3
 #+begin_src python  :results value file  :exports results 
   fig1 = f"./img/{name}.png"
@@ -426,16 +443,36 @@ In [[tab:flutter_chordextension]] we see
   fig1
 #+end_src
 
+#+CAPTION: Vg-Vf analysis for the strut extension, \alpha = 1.1
+#+NAME: fig:vg_vf_chordextension11
 #+ATTR_LATEX: :width 0.65\textwidth 
 #+RESULTS: VgVf-CHORD_EXTENSION_tailless25_3
 [[file:./img/VgVf-CHORD_EXTENSION_tailless25_3.png]]
+*** Factor \alpha= 1.2
+What Fig. [[fig:vg_vf_chordextension12]] illustrates is that stability and strut-size don't correlate monotonically. The  Thus this can be a good variable to include as part of an optimization problem.   
+#+NAME: VgVf-CHORD_EXTENSION_tailless25_4
+#+begin_src python  :results value file  :exports results 
+  fig1 = f"./img/{name}.png"
+  results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 16),
+                                                        ylim_damping=[-0.07, 0.03],
+                                                        ylim_freq=[0.1, 5.],
+                                                        legend=True)
+  #<<savefig(figname=fig1)>>
+  plt.savefig(fig1)
+  #plt.close()
+  fig1
+#+end_src
 
+#+CAPTION: Vg-Vf analysis for the strut extension, \alpha = 1.2
+#+NAME: fig:vg_vf_chordextension12
+#+ATTR_LATEX: :width 0.65\textwidth 
+#+RESULTS: VgVf-CHORD_EXTENSION_tailless25_4
+[[file:./img/VgVf-CHORD_EXTENSION_tailless25_4.png]]
 
 \newpage
 ** Lumped masses case
-
+On this example we move lumped masses on the strut chordwise. As in classical flutter problems, it proves to be a very effective solution. It should be noted, however, that the ranges in which the masses are moved are likely not feasibly due to other physical constraints. Results are shown in Table [[tab:flutter_lumpedmasses]].
 # Changing data frame with good values due to the automatic algorithm failing at modes > 10 (tolerance needed in implementation).
-
 #+NAME: FLUTTER-shift_conm2s_tailless25
 #+begin_src python  :results raw :exports results
   df_ = results_df[name.split("-")[-1]]
@@ -451,6 +488,7 @@ In [[tab:flutter_chordextension]] we see
   tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
 #+end_src
 
+#+NAME: tab:flutter_lumpedmasses
 #+CAPTION:  Flutter assessment when moving strut lumped masses
 #+RESULTS: FLUTTER-shift_conm2s_tailless25
 | flutter | flutter_mode | factor (% chord) |
@@ -463,12 +501,11 @@ In [[tab:flutter_chordextension]] we see
 | 180.696 |            3 |             0.05 |
 |  197.31 |            3 |              0.1 |
 | 259.569 |           14 |             0.15 |
-| 240.116 |           14 |              0.2 |
+|   213.7 |           14 |              0.2 |
 
-#+CAPTION: Flutter assessment when moving the strut masses
-
-*** Masses shifted -0.15%
+*** COMMENT Masses shifted -0.15%
 # Carful with index!! not the same as in the table here as rows are deleted
+The effect of moving the masses in a
 #+NAME: VgVf-shift_conm2s_tailless25_3
 #+begin_src python :session py1 :results value file  :exports results 
   fig1 = f"./img/{name}.png"
@@ -482,11 +519,13 @@ In [[tab:flutter_chordextension]] we see
   fig1
 #+end_src
 
+#+NAME: fig:vg_vf_masses
+#+CAPTION: Vg-Vf analysis for moving lumped masses, -0.15% strut chord
 #+ATTR_LATEX: :width 0.65\textwidth 
 #+RESULTS: VgVf-shift_conm2s_tailless25_3
 [[file:./img/VgVf-shift_conm2s_tailless25_3.png]]
-
 *** Masses shifted +0.15%
+Interestingly, the effect of moving the masses is that mode 3 (and 4, its anti-symmetric) can be made stable, thereby significantly increasing the flutter speed. This is shown in Fig. [[fig:vg_vf_masses015]].
 #+NAME: VgVf-shift_conm2s_tailless25_8
 #+begin_src python :session py1 :results value file  :exports results 
   fig1 = f"./img/{name}.png"
@@ -500,12 +539,14 @@ In [[tab:flutter_chordextension]] we see
   fig1
 #+end_src
 
+#+NAME: fig:vg_vf_masses015
+#+CAPTION: Vg-Vf analysis for moving lumped masses, +0.15% strut chord
 #+ATTR_LATEX: :width 0.65\textwidth 
 #+RESULTS: VgVf-shift_conm2s_tailless25_8
 [[file:./img/VgVf-shift_conm2s_tailless25_8.png]]
 
-
 *** Masses shifted +0.2%
+Illustrated in Fig. [[fig:vg_vf_masses02]], modes 3 and 4 have been damped out, but as modes 13 and 14 (symmetric and anti-symmetric) move down the velocity-axis, the flutter speed is reduced as the masses are further displaced. 
 #+NAME: VgVf-shift_conm2s_tailless25_9
 #+begin_src python :session py1 :results value file  :exports results 
   fig1 = f"./img/{name}.png"
@@ -519,13 +560,13 @@ In [[tab:flutter_chordextension]] we see
   fig1
 #+end_src
 
+#+NAME: fig:vg_vf_masses02
 #+ATTR_LATEX: :width 0.65\textwidth 
 #+RESULTS: VgVf-shift_conm2s_tailless25_9
 [[file:./img/VgVf-shift_conm2s_tailless25_9.png]]
 
-
-\newpage
 ** Parametric aerodynamic placement
+Lastly, there might be some room in the placement of the aerodynamic surfaces with respect to the main wing-box or vice-versa. This is modelled by shifting the aerodynamic panels chordwise. Table [[tab:flutter_panels]] shows that this parameter does not affect significantly the stability. 
 #+NAME: FLUTTER-shift_panels_tailless25
 #+begin_src python  :results raw :exports results
   df_ = results_df[name.split("-")[-1]]
@@ -535,6 +576,7 @@ In [[tab:flutter_chordextension]] we see
   tabulate(df_, headers=df_.columns,showindex=False, tablefmt='orgtbl')
 #+end_src
 
+#+NAME: tab:flutter_panels
 #+CAPTION: Flutter assessment when changing the aerodynamic panels location 
 #+RESULTS: FLUTTER-shift_panels_tailless25
 | flutter | flutter_mode | factor |
@@ -549,12 +591,12 @@ In [[tab:flutter_chordextension]] we see
 | 167.071 |            3 |    0.2 |
 | 166.447 |            3 |   0.25 |
 
-*** Strut aerodynamics shifted -0.2%
+*** COMMENT Strut aerodynamics shifted -0.2%
 #+NAME: VgVf-shift_panels_tailless25_1
 #+begin_src python :session py1 :results value file  :exports results 
   fig1 = f"./img/{name}.png"
   results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 16),
-                                                        ylim_damping=[-0.03, 0.02],
+                                                        ylim_damping=[-0.05, 0.02],
                                                         ylim_freq=[0.1, 6],
                                                         legend=True)
   #<<savefig(figname=fig1)>>
@@ -567,12 +609,12 @@ In [[tab:flutter_chordextension]] we see
 #+RESULTS: VgVf-shift_panels_tailless25_1
 [[file:./img/VgVf-shift_panels_tailless25_1.png]]
 
-*** Strut aerodynamics shifted +0.2%
+*** COMMENT Strut aerodynamics shifted +0.2%
 #+NAME: VgVf-shift_panels_tailless25_7
 #+begin_src python :session py1 :results value file  :exports results 
   fig1 = f"./img/{name}.png"
   results[name.split("-")[-1]]['sol145'].obj.plot_vg_vf(modes=range(1, 16),
-                                                        ylim_damping=[-0.3, 0.08],
+                                                        ylim_damping=[-0.03, 0.08],
                                                         ylim_freq=[0.1, 6],
                                                         legend=True)
   #<<savefig(figname=fig1)>>
