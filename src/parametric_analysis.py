@@ -251,18 +251,23 @@ def calculate_flutter(fileX, Modes=None, collector=None):
             flutter_modes.append(fi[0])
         else:
             flutter_modes.append(np.inf)
+    
     flutter_modes = np.array(flutter_modes)
-    flutter_index = int(min(flutter_modes))
-    flutter_mode = np.where(flutter_modes == flutter_index)[0]
-    flutter_speeds = []
-    for fi in flutter_mode:
-        flutter_speed_i = (sol145.velocity[fi, flutter_index-1] + (sol145.velocity[fi, flutter_index]
-                                                                   - sol145.velocity[fi, flutter_index - 1])/
-                           (sol145.damping[fi, flutter_index] - sol145.damping[fi, flutter_index -1]) *
-                           -sol145.damping[fi, flutter_index-1])
-        flutter_speeds.append(flutter_speed_i)
-    FlutterSpeed = min(flutter_speeds)
-    FlutterMode = flutter_mode[flutter_speeds.index(FlutterSpeed)]
+    if min(flutter_modes) == np.inf:
+         FlutterMode = None
+         FlutterSpeed = None
+    else:
+        flutter_index = int(min(flutter_modes))
+        flutter_mode = np.where(flutter_modes == flutter_index)[0]
+        flutter_speeds = []
+        for fi in flutter_mode:
+            flutter_speed_i = (sol145.velocity[fi, flutter_index-1] + (sol145.velocity[fi, flutter_index]
+                                                                       - sol145.velocity[fi, flutter_index - 1])/
+                               (sol145.damping[fi, flutter_index] - sol145.damping[fi, flutter_index -1]) *
+                               -sol145.damping[fi, flutter_index-1])
+            flutter_speeds.append(flutter_speed_i)
+        FlutterSpeed = min(flutter_speeds)
+        FlutterMode = flutter_mode[flutter_speeds.index(FlutterSpeed)]
 
     if collector is not None:
         fill_collector(locals(), collector)
