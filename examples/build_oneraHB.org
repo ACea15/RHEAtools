@@ -12,11 +12,11 @@
 
   MESH_FILE = "1901_inv.su2" #"1901_inv.su2"
   MARKERS_FILE = "sbw_1901.txt" #"sbw_1901.txt" # sbw_1901.txt
-  NUM_MODES = 10
-  SCALING = 15.
-  MACH_NUMBER = 0.75 #0.75#0.735
-  FREESTREAM_TEMPERATURE= 216.66#222.773
-  FREESTREAM_PRESSURE= 18752.378694043327#26201.65
+  NUM_MODES = 5
+  SCALING = 1.
+  MACH_NUMBER = 0.78 #0.75 #0.75#0.735
+  FREESTREAM_TEMPERATURE= 242.7#216.66#222.773
+  FREESTREAM_PRESSURE= 41110. #18752.378694043327#26201.65
   R = 287.058
   gamma = 1.4
   FREESTREAM_VELOCITY= MACH_NUMBER * (FREESTREAM_TEMPERATURE * gamma * R) ** 0.5
@@ -27,13 +27,13 @@
   WING_SPAN= 28.
   b = ROOT_WING_CHORD/2
 
-  REDUCED_FREQ = (1e-7, 1e-5, 1e-3, 0.01)
-  REDUCED_FREQ = (0.03, 0.05, 0.07, 0.1)
-  OMEGA_AERO = (6.0947, 21.0989, 25.0699, 40., 82.9318)
+  #REDUCED_FREQ = (1e-7, 1e-5, 1e-3, 0.01)
+  REDUCED_FREQ = (1e-7, 0.01, 0.1)
   #OMEGA_MODE = tuple([FREESTREAM_VELOCITY * ki / b  for ki in REDUCED_FREQ for i in range(NUM_MODES)])
   OMEGA_MODE = tuple([FREESTREAM_VELOCITY * ki / b for ki in REDUCED_FREQ])
+  HB_MODE = 4
   AMPL_MODE = [0. for i in range(NUM_MODES)]
-  AMPL_MODE[0] = 0.1
+  AMPL_MODE[HB_MODE] = 1. * SCALING
   AMPL_MODE = tuple(AMPL_MODE)
   OMEGA_HB = tuple([FREESTREAM_VELOCITY * ki / b for ki in REDUCED_FREQ])#tuple([0, OMEGA_MODE0, -OMEGA_MODE0])
   HB_PERIOD = tuple([2 * np.pi / i for i in OMEGA_HB])
@@ -44,7 +44,7 @@
 
   WING_VOL_TRUN_CONE = 1.1
   rho_mat = 400.
-  Omega = 6.0947#OMEGA_HB[0]
+
   # m
   SCALE_PARAM = 1. / (WING_VOL_TRUN_CONE * rho_mat)
 
@@ -52,29 +52,11 @@
   AIRFOIL_MASS_RATIO = (WING_VOL_TRUN_CONE * rho_mat) / (np.pi *
                         FREESTREAM_DENSITY * (ROOT_WING_CHORD / 2)**2)
 
-  # FLUTTER_SPEED_INDEX = U/(mu**0.5 * b * omega0)
-  # %% (TgammaR) = ((vf*vf)*(b*b)*(w_alpha*w_alpha)*mu) / (Mach*Mach)
-  FLUTTER_SPEED_INDEX = MACH_NUMBER * ((FREESTREAM_TEMPERATURE * gamma * R) ** 0.5 /
-                         ((b * Omega) * AIRFOIL_MASS_RATIO**0.5))
-  #FLUTTER_SPEED_INDEX = 0.00227
   eval(output)
 #+end_src
 
 #+RESULTS: python_parameters
-| 4.426184098995431 | 7.376973498325718 | 10.327762897656006 | 14.753946996651436 |
-
-#+NAME: python_parameters2
-#+begin_src python :session py1 :var ki=1 output="HB_PERIODX" :noweb yes
-  ##<<python_parameters>>
-  OMEGA_MODE0 = FREESTREAM_VELOCITY * ki / 2
-  OMEGA_MODEX = tuple([OMEGA_MODE0 for i in range(NUM_MODES)])
-  OMEGA_HBX = tuple([0, OMEGA_MODE0, -OMEGA_MODE0])
-  HB_PERIODX = 2 * np.pi / OMEGA_MODE0
-  eval(output)
-#+end_src
-
-#+RESULTS: python_parameters2
-: 0.05678196086426339
+| 1.624003934160752e-05 | 1.6240039341607522 | 16.240039341607524 |
 
 ** tmp
 #+begin_src bash :results output :noweb yes
@@ -105,9 +87,10 @@
 #+begin_src elisp  :noweb yes :results output
   (setq NUM_MODES (number-to-string <<python_parameters(output="NUM_MODES")>>))
   (setq SCALING (number-to-string <<python_parameters(output="SCALING")>>))
+  (setq HB_MODE (number-to-string <<python_parameters(output="HB_MODE")>>))
   (print (concat "Number of Modes:" NUM_MODES))
   (print (concat "Scaling:" SCALING))
-  (setq output_label "mesh1901tailless")
+  (setq output_label "mesh1901tailless078M")
   ;;(setq local_root (string-trim-right default-directory "/examples/"))
   ;;(setq local_root (replace-regexp-in-string "~" "$HOME" local_root))
   (setq local_root "/home/ac5015/programs/RHEAtools")
@@ -117,7 +100,7 @@
   (setq onera_dir (concat "/ONERA_fac" SCALING))
   (setq mesh_deformation_dir (concat onera_dir "/MeshDeformation_" output_label))
   (setq steady_deformation_dir (concat onera_dir "/SteadyModes_" output_label))
-  (setq hb_dir (concat onera_dir "/HB_" output_label))
+  (setq hb_dir (concat onera_dir "/HB_" output_label "-M" HB_MODE))
   (setq mesh_deformation_tangle (concat local_root local_dir mesh_deformation_dir))
   (setq steady_deformation_tangle (concat local_root local_dir steady_deformation_dir))
   (setq HB_tangle (concat local_root local_dir hb_dir))
@@ -129,9 +112,9 @@
 
 #+RESULTS:
 : 
-: "Number of Modes:10"
+: "Number of Modes:5"
 : 
-: "Scaling:15.0"
+: "Scaling:1.0"
 : 
 : "ENV VARIABLES SET!!"
 : 
@@ -140,7 +123,7 @@
 * Modal shapes workflow
 #+NAME: ModalShapes
 #+header: 
-#+begin_src bash :noweb yes :dir (print program_dir0) :shebang #!/usr/bin/zsh :results output :var OUTPUT_DIR=(print mesh_deformation_tangle) dir1=(print local_root) NUM_MODES1=(print NUM_MODES) SCALING1=(print SCALING) :tangle (print (concat mesh_deformation_tangle "/generate_modes.sh")) 
+#+begin_src bash :noweb yes :dir (print program_dir0) :shebang #!/usr/bin/zsh :results output :var OUTPUT_DIR=(print mesh_deformation_tangle) dir1=(print local_root) NUM_MODES1=(print NUM_MODES) SCALING1=(print SCALING) :tangle (print (concat mesh_deformation_tangle "/generate_modes.sh")) :async
 
   MARKERS_FILE=<<python_parameters(output="MARKERS_FILE")>>
   echo $dir1
@@ -152,11 +135,11 @@
 #+RESULTS: ModalShapes
 #+begin_example
 /home/ac5015/programs/RHEAtools
-Modes scaling: 15.0
+Modes scaling: 30.0
 Modes : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-Filtering : <function filter_sigmoid at 0x7f10bb6cfeb0>
-Directory : /home/ac5015/programs/RHEAtools/data/out/ONERA_fac15.0/MeshDeformation_mesh1901tailless
-MARKERS_FILE : ./data/in/sbw_1901.txt
+Filtering : <function filter_sigmoid at 0x7f92dc18feb0>
+Directory : /home/ac5015/programs/RHEAtools/data/out/ONERA_fac30/MeshDeformation_mesh1901tailless078M
+MARKERS_FILE : /home/ac5015/programs/RHEAtools/data/in/sbw_1901.txt
 DEBUG:   bdf.py:1001                  ---starting BDF.read_bdf of ./data/in/SOL103tailless/polimi-103cam.bdf---
 DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOL103tailless/polimi-103cam.bdf'
 DEBUG:   pybdf.py:558                 opening '/home/ac5015/programs/RHEAtools/data/in/SOL103tailless/stick_wing.bdf'
@@ -242,13 +225,14 @@ times = [  1.   2.   3.   4.   5.   6.   7.   8.   9.  10.  11.  12.  13.  14.
 
 * Write Gafs from op4 to Matlab
 #+NAME: GAFs2Matlab
-#+begin_src bash :dir (print program_dir0) :shebang #!/usr/bin/zsh :results output  
+#+begin_src bash :dir (print program_dir0) :var OUTPUT_DIR=(print mesh_deformation_tangle) :shebang #!/usr/bin/zsh :results output  
   MODEL_PATH=$HOME/programs/RHEAtools/data/in/SOLGAFstailless
   GAFS_FILE=Qhh25-078.op4
   NASTRAN_FILE=polimi-145cam_078M.bdf
+  FREQS_FILE=$OUTPUT_DIR/natural_freqs.npy
   echo $dir1
   PYTHONPATH=$PYTHONPATH:$dir1
-  python src/read_matrices.py -p $MODEL_PATH -g $GAFS_FILE -n $NASTRAN_FILE
+  python src/read_matrices.py -p $MODEL_PATH -g $GAFS_FILE -n $NASTRAN_FILE -f $FREQS_FILE
 #+end_src
 
 #+RESULTS: GAFs2Matlab
@@ -268,8 +252,29 @@ INFO:    bdf.py:2350                      rejecting card_name = 'MDLPRM'
 DEBUG:   cross_reference.py:151       Cross Referencing...
 DEBUG:   bdf.py:1049                  ---finished BDF.read_bdf of /home/ac5015/programs/RHEAtools/data/in/SOLGAFstailless/polimi-145cam_078M.bdf---
 Reading OP4 where GAFs are located
+Reading natural frequencies
 writing GAFs and reduced freqs. to /home/ac5015/programs/RHEAtools/data/in/SOLGAFstailless/matlab_gafs.mat
 #+end_example
+
+* Parameters
+#+NAME: python_parameters2
+#+begin_src python :session py1 :var output2="Omega" OUTPUT_DIR=(print mesh_deformation_tangle) :noweb yes
+  <<python_parameters>>
+  OMEGA_AERO_FULL = np.load(OUTPUT_DIR + "/natural_freqs.npy")
+  Omega = OMEGA_AERO[0]
+  OMEGA_AERO = OMEGA_AERO_FULL[:NUM_MODES]
+  # FLUTTER_SPEED_INDEX = U/(mu**0.5 * b * omega0)
+  # %% (TgammaR) = ((vf*vf)*(b*b)*(w_alpha*w_alpha)*mu) / (Mach*Mach)
+  FLUTTER_SPEED_INDEX = MACH_NUMBER * ((FREESTREAM_TEMPERATURE * gamma * R) ** 0.5 /
+                         ((b * Omega) * AIRFOIL_MASS_RATIO**0.5))
+  #FLUTTER_SPEED_INDEX = 0.00227
+
+  eval(output2)
+#+end_src
+
+#+RESULTS: python_parameters2
+: 4.796482529877893
+
 
 * Mesh deformation workflow
 ** file for HPC submission
@@ -345,10 +350,10 @@ writing GAFs and reduced freqs. to /home/ac5015/programs/RHEAtools/data/in/SOLGA
   DEFORM_LINEAR_SOLVER_PREC= ILU
   %
   % Number of smoothing iterations for mesh deformation
-  DEFORM_LINEAR_SOLVER_ITER= 1000 %20
+  DEFORM_LINEAR_SOLVER_ITER= 800 %20
   %
   % Number of nonlinear deformation iterations (surface deformation increments)
-  DEFORM_NONLINEAR_ITER= 3 %1
+  DEFORM_NONLINEAR_ITER= 1 %3 %1
   %
   % Minimum residual criteria for the linear solver convergence of grid deformation
   DEFORM_LINEAR_SOLVER_ERROR= 4E-16
@@ -699,7 +704,7 @@ MARKER_MONITORING= ( wing, strut, fuselage, wing_fairing, strut_fairing )
   CFL_ADAPT= NO
   CFL_ADAPT_PARAM= ( 1.5, 0.5, 1.0, 100.0 )
   RK_ALPHA_COEFF= ( 0.66667, 0.66667, 1.000000 )
-  ITER= 700
+  ITER= 1100
   LINEAR_SOLVER= FGMRES
   LINEAR_SOLVER_ERROR= 1E-6
   LINEAR_SOLVER_PREC= ILU
@@ -786,7 +791,7 @@ MARKER_MONITORING= ( wing, strut, fuselage, wing_fairing, strut_fairing )
   sshpass -f $LOCAL_ROOT/examples/pas scp $LOCAL_ROOT/$LOCAL_DIR/$MeshDeformationSteady/run.pbs ac5015@login.hpc.imperial.ac.uk:$HOME/$REMOTE_DIR/$MeshDeformationSteady/G0/run.pbs
   sshpass -f $LOCAL_ROOT/examples/pas ssh ac5015@login.hpc.imperial.ac.uk << EOF
   cd $HOME/$REMOTE_DIR/$MeshDeformationSteady/G0/
-  qsub run.pbs
+  #qsub run.pbs
   exit
   EOF
 
@@ -896,17 +901,17 @@ MARKER_MONITORING= ( wing, strut, fuselage, wing_fairing, strut_fairing )
   WING_SPAN=  <<python_parameters(output="WING_SPAN")>>
   WING_VOL_TRUN_CONE= <<python_parameters(output="WING_VOL_TRUN_CONE")>>
   SCALE_PARAM= <<python_parameters(output="SCALE_PARAM")>>
-  FLUTTER_SPEED_INDEX = <<python_parameters(output="FLUTTER_SPEED_INDEX")>>
+  FLUTTER_SPEED_INDEX = <<python_parameters2(output2="FLUTTER_SPEED_INDEX")>>
   AIRFOIL_MASS_RATIO = <<python_parameters(output="AIRFOIL_MASS_RATIO")>>
   %
   % Solve the aeroelastic equations every given number of internal iterations
   AEROELASTIC_MODES= <<python_parameters(output="NUM_MODES")>>
   %
-  OMEGA_AERO= <<python_parameters(output="OMEGA_AERO")>>
+  OMEGA_AERO= <<python_parameters2(output2="OMEGA_AERO")>>
   %
   OMEGA_MODE= <<python_parameters(output="OMEGA_MODE")>>
   AMPL_MODE= <<python_parameters(output="AMPL_MODE")>>
-  PITCH_NATURAL_FREQUENCY=<<python_parameters(output="Omega")>>
+  PITCH_NATURAL_FREQUENCY=<<python_parameters2(output2="Omega")>>
 #+end_src
 
 *** Reference values
@@ -983,8 +988,8 @@ MARKER_MONITORING= ( wing, strut, fuselage, wing_fairing, strut_fairing )
 
 ** File for HPC submission
 #+begin_src org :tangle (concat HB_tangle "/run.pbs") :mkdirp yes :shebang   #!/usr/bin/zsh
-  #PBS -l walltime=24:59:00
-  #PBS -l select=1:ncpus=1:mem=100gb  
+  #PBS -l walltime=08:00:00
+  #PBS -l select=1:ncpus=1:mem=600gb
   ###:mpiprocs=16
   ###PBS -l select=1:ncpus=8:mem=16gb
 
@@ -1004,13 +1009,14 @@ MARKER_MONITORING= ( wing, strut, fuselage, wing_fairing, strut_fairing )
 ** Copy files to HPC and run steady
 #+NAME: HPC_HB
 #+header: :noweb yes :var LOCAL_DIR=(print local_dir) LOCAL_ROOT=(print local_root) REMOTE_DIR=(print remote_dir) HBDIR=(print hb_dir) NUM_MODES1=(print NUM_MODES) MeshDeformation=(print mesh_deformation_dir) :results output
-#+begin_src shell :tangle (print (concat HB_tangle "/hpc.sh")) :mkdirp yes :shebang   #!/usr/bin/zsh
+#+begin_src bash :tangle (print (concat HB_tangle "/hpc.sh")) :mkdirp yes :shebang   #!/usr/bin/zsh
   run_qsub=true
   REDUCED_FREQ=<<python_parameters("REDUCED_FREQ")>>
   echo "Running HB"
   OMEGA_MODE=<<python_parameters("OMEGA_MODE")>>
   OMEGA_HB=<<python_parameters("OMEGA_HB")>>
   HB_PERIOD=<<python_parameters("HB_PERIOD")>>
+  HB_MODE=<<python_parameters("HB_MODE")>>	
   echo ${REDUCED_FREQ[@]}
   echo ${HB_PERIOD[@]}
   counter=0
@@ -1018,7 +1024,7 @@ MARKER_MONITORING= ( wing, strut, fuselage, wing_fairing, strut_fairing )
     do
     #OMEGA_MODEX=${OMEGA_MODE[*]:$(($counter*$NUM_MODES1)):$(($((counter+1))*$NUM_MODES1))}
     OMEGA_MODEX=( $(for i in {1..$NUM_MODES1}; do echo 0; done) )
-    OMEGA_MODEX[1]=${OMEGA_MODE[@]:$counter:1}
+    OMEGA_MODEX[$(($HB_MODE+1))]=${OMEGA_MODE[@]:$counter:1}
     HB_PERIODX=${HB_PERIOD[@]:$counter:1}
     OMEGA_HBX=${OMEGA_HB[@]:$counter:1}
     echo Reduced frequency: $ki
@@ -1059,6 +1065,15 @@ MARKER_MONITORING= ( wing, strut, fuselage, wing_fairing, strut_fairing )
 : 0.1
 : 0.3
 : 0.5
+** Retrieve paraview surface
+#+header: :noweb yes :var LOCAL_DIR=(print local_dir) LOCAL_ROOT=(print local_root) REMOTE_DIR=(print remote_dir) HBDIR=(print hb_dir) NUM_MODES1=(print NUM_MODES) MeshDeformation=(print mesh_deformation_dir) :results output
+#+begin_src shell :tangle (print (concat HB_tangle "/retrieve_deformedmesh.sh")) :mkdirp yes :shebang   #!/usr/bin/zsh
+   for ki in "${REDUCED_FREQ[@]}"
+     do
+         echo "Copying surface_deformed.vtu from Freq $ki"
+         sshpass -f $LOCAL_ROOT/examples/pas scp ac5015@login.hpc.imperial.ac.uk:$HOME/$REMOTE_DIR/$HBDIR/K$ki/soln_surface_onera.vtu $LOCAL_ROOT/$LOCAL_DIR/$HBDIR/K$ki/soln_surface_onera.vtu
+   done
+#+end_src
 
 * Orchestrator
 ** Check hpc status
@@ -1093,38 +1108,38 @@ MARKER_MONITORING= ( wing, strut, fuselage, wing_fairing, strut_fairing )
 #+RESULTS: Orchestrator_MeshDeformation
 #+begin_example
 Current directory:
-/home/ac5015/programs/RHEAtools/data/out/ONERA_fac15.0/MeshDeformation_mesh1901tailless
+/home/ac5015/programs/RHEAtools/data/out/ONERA_fac1.0/MeshDeformation_mesh1901tailless078M
 RUNNING hpc.sh
 Copying Interpolated Mode 0
 Submitting Mode 0
-7336821.pbs
+7370214.pbs
 Copying Interpolated Mode 1
 Submitting Mode 1
-7336823.pbs
+7370215.pbs
 Copying Interpolated Mode 2
 Submitting Mode 2
-7336824.pbs
+7370216.pbs
 Copying Interpolated Mode 3
 Submitting Mode 3
-7336825.pbs
+7370217.pbs
 Copying Interpolated Mode 4
 Submitting Mode 4
-7336827.pbs
+7370218.pbs
 Copying Interpolated Mode 5
 Submitting Mode 5
-7336829.pbs
+7370219.pbs
 Copying Interpolated Mode 6
 Submitting Mode 6
-7336832.pbs
+7370220.pbs
 Copying Interpolated Mode 7
 Submitting Mode 7
-7336835.pbs
+7370221.pbs
 Copying Interpolated Mode 8
 Submitting Mode 8
-7336836.pbs
+7370222.pbs
 Copying Interpolated Mode 9
 Submitting Mode 9
-7336838.pbs
+7370223.pbs
 #+end_example
 
 *** Orchestrator_RecoverParaview
@@ -1136,19 +1151,26 @@ Submitting Mode 9
 #+end_src
 
 #+RESULTS: Orchestrator_RecoverParaview
-: Recovering paraview modal shapes:
-: retrieve_deformedmesh.sh
-: Copying surface_deformed.vtu from Mode 0
-: Copying surface_deformed.vtu from Mode 1
-: Copying surface_deformed.vtu from Mode 2
-: Copying surface_deformed.vtu from Mode 3
-: Copying surface_deformed.vtu from Mode 4
+#+begin_example
+Recovering paraview modal shapes:
+retrieve_deformedmesh.sh
+Copying surface_deformed.vtu from Mode 0
+Copying surface_deformed.vtu from Mode 1
+Copying surface_deformed.vtu from Mode 2
+Copying surface_deformed.vtu from Mode 3
+Copying surface_deformed.vtu from Mode 4
+Copying surface_deformed.vtu from Mode 5
+Copying surface_deformed.vtu from Mode 6
+Copying surface_deformed.vtu from Mode 7
+Copying surface_deformed.vtu from Mode 8
+Copying surface_deformed.vtu from Mode 9
+#+end_example
 
 ** Steady modal shapes
 *** Run Steady simulations
 #+NAME: Orchestrator_SteadyModes
 #+header: 
-#+begin_src bash :dir (print steady_deformation_tangle) :shebang #!/usr/bin/zsh :results output 
+#+begin_src bash :dir (print steady_deformation_tangle) :shebang #!/usr/bin/zsh :results output :async
   echo Current directory:
   pwd
   echo ####################
@@ -1159,11 +1181,10 @@ Submitting Mode 9
 #+RESULTS: Orchestrator_SteadyModes
 #+begin_example
 Current directory:
-/home/ac5015/programs/RHEAtools/data/out/ONERA_fac15.0/SteadyModes_mesh1901tailless
+/home/ac5015/programs/RHEAtools/data/out/ONERA_fac1.0/SteadyModes_mesh1901tailless078M
 
 RUNNING hpc.sh
 Running Steady on reference config
-7337104.pbs
 Creating and copying config file for Mode 0
 Copying .cfg
 Copying run.pbs
@@ -1205,31 +1226,86 @@ Copying run.pbs
 #+end_src
 
 #+RESULTS: Orchestrator_RecoverSteady
+#+begin_example
+Recovering paraview modal shapes:
+Running retrieve_deformedmesh.sh
+Copying surface_deformed.vtu from Mode 0
+Copying surface_deformed.vtu from Mode 1
+Copying surface_deformed.vtu from Mode 2
+Copying surface_deformed.vtu from Mode 3
+Copying surface_deformed.vtu from Mode 4
+Copying surface_deformed.vtu from Mode 5
+Copying surface_deformed.vtu from Mode 6
+Copying surface_deformed.vtu from Mode 7
+Copying surface_deformed.vtu from Mode 8
+Copying surface_deformed.vtu from Mode 9
+#+end_example
 
 ** HB run 
 *** Run Steady simulations
 #+NAME: Orchestrator_HB
-#+begin_src bash :dir (print HB_tangle) :shebang #!/usr/bin/zsh :results output
+#+begin_src bash :dir (print HB_tangle) :shebang #!/usr/bin/zsh :results output :async
   echo Current directory:
   pwd
   echo ####################
   echo RUNNING hpc.sh
-  #zsh hpc.sh
+  zsh hpc.sh
 #+end_src
 
 #+RESULTS: Orchestrator_HB
-: Current directory:
-: /home/ac5015/programs/RHEAtools/data/out/ONERA_fac0.1/HB_mesh1901
-: 
-: RUNNING hpc.sh
+#+begin_example
+Current directory:
+/home/ac5015/programs/RHEAtools/data/out/ONERA_fac1.0/HB_mesh1901tailless078M-M4
 
+RUNNING hpc.sh
+Running HB
+1e-07 0.01 0.1
+386894.70973643864 3.8689470973643862 0.3868947097364386
+Reduced frequency: 1e-07
+0
+386894.70973643864
+hello
+Copying files to HPC
+Copying modes
+Mode: 0
+Mode: 1
+Mode: 2
+Mode: 3
+Mode: 4
+submitting qsub
+7372372.pbs
+Reduced frequency: 0.01
+1
+3.8689470973643862
+hello
+Copying files to HPC
+Copying modes
+Mode: 0
+Mode: 1
+Mode: 2
+Mode: 3
+Mode: 4
+submitting qsub
+7372377.pbs
+Reduced frequency: 0.1
+2
+0.3868947097364386
+hello
+Copying files to HPC
+Copying modes
+Mode: 0
+Mode: 1
+Mode: 2
+Mode: 3
+Mode: 4
+submitting qsub
+7372378.pbs
+#+end_example
 
 *** Recover paraview
-#+NAME: Orchestrator_RecoverSteady
+#+NAME: Orchestrator_RecoverHB
 #+begin_src bash :dir (print HB_tangle) :shebang #!/usr/bin/zsh :results output 
   echo Recovering paraview modal shapes:
   echo Running retrieve_deformedmesh.sh
   zsh retrieve_deformedmesh.sh
 #+end_src
-
-#+RESULTS: Orchestrator_RecoverSteady

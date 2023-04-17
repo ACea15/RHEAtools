@@ -1,4 +1,5 @@
 import numpy as np
+import sys
 import pandas as pd
 from pyNastran.bdf.bdf import BDF
 from pyNastran.op2.op2 import OP2
@@ -23,7 +24,10 @@ parser.add_argument("-a","--markers_file", nargs='?', const=None, type=str)
 parser.add_argument("-n","--nastran_file", nargs='?', const=None, type=str)
 
 args = parser.parse_args()
-
+rhea_tools = "/".join([si for si in sys.path if
+                       "RHEAtools" in si][0].split("/")[:[si for si in sys.path if
+                       "RHEAtools" in si][0].split("/").index("RHEAtools")+1])
+#"/home/ac5015/programs/RHEAtools"
 if args.scaling is None:
     MODES_SCALING = 20.
 else:
@@ -37,19 +41,19 @@ if args.filtering is None:
 else:
     FILTERING = locals()[args.filtering]
 if args.dir2save is None:
-    SAVE_DIR0 = f"./data/out/ONERA_fac{MODES_SCALING}/MeshDeformation/"
+    SAVE_DIR0 = f"{rhea_tools}/data/out/ONERA_fac{MODES_SCALING}/MeshDeformation/"
 else:
     #SAVE_DIR0 = f"./data/out/ONERA_fac{MODES_SCALING}/{args.dir2save}/"
     SAVE_DIR0 = f"{args.dir2save}"
 if args.markers_file is None:
-    MARKERS_FILE = "./data/in/sbw_def0.txt"
-    MARKERS_FILE = "./data/in/sbw_1901.txt"
+    MARKERS_FILE = f"{rhea_tools}/data/in/sbw_def0.txt"
+    MARKERS_FILE = f"{rhea_tools}/data/in/sbw_1901.txt"
 else:
     #SAVE_DIR0 = f"./data/out/ONERA_fac{MODES_SCALING}/{args.dir2save}/"
-    MARKERS_FILE = f"./data/in/{args.markers_file}"
+    MARKERS_FILE = f"{rhea_tools}/data/in/{args.markers_file}"
 if args.nastran_file is None:
-    NASTRAN_FILE = "./data/in/SOL103/polimi-103cam.bdf"
-    NASTRAN_FILE_OP2 = "./data/in/SOL103/polimi-103cam.op2"
+    NASTRAN_FILE = f"{rhea_tools}/data/in/SOL103/polimi-103cam.bdf"
+    NASTRAN_FILE_OP2 = f"{rhea_tools}/data/in/SOL103/polimi-103cam.op2"
 else:
     NASTRAN_FILE = f"./data/in/{args.nastran_file}.bdf"
     NASTRAN_FILE_OP2 = f"./data/in/{args.nastran_file}.op2"
@@ -118,6 +122,7 @@ components = dict(wing=dict(rbe2_ids=rbe2_wing,
                   #            ),
                   )
 
+#import pdb; pdb.set_trace();
 
 ####################################################
 
@@ -139,6 +144,11 @@ m2.strut.apply_transformation([0.7/0.29, 0.7/0.29])
 
 #m1.wing.apply_transformation([1,1])
 #m1.strut.apply_transformation([1,1])
+
+m2.build_gridmesh(nchord, save_file='Gridcam',
+                  build_symmetric=True, save_dir=SAVE_DIR0 + "/DLMgrid/")
+m2.build_modalmesh(nchord, range(35), save_file='Mcam',
+                   build_symmetric=True, save_dir=SAVE_DIR0 + "/DLMgrid/")
 
 m2.build_gridmesh(nchord, save_file='Gridcam_half',
                   build_symmetric=False, save_dir=SAVE_DIR0 + "/DLMgrid/")
@@ -162,7 +172,7 @@ full_mesh = False
 if (MARKERS_FILE == "./data/in/sbw_def0.txt" or
     MARKERS_FILE == "./data/in/sbw_0901.txt"):
     index_parts = 284698
-elif (MARKERS_FILE == "./data/in/sbw_1901.txt"):
+elif (MARKERS_FILE == "./data/in/sbw_1901.txt") or True:
     index_parts = 219467
 elif (MARKERS_FILE == "./data/in/sbw_1901FULL.txt"):
     df_combined = df0.drop_duplicates().set_index('id')
